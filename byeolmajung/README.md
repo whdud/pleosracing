@@ -1,0 +1,79 @@
+# 별마중
+
+차가 멈춘 그 자리에서, 차가 바라보는 방향의 밤하늘을 보여주고 별자리 이야기를 들려주는 Pleos Connect 천체 관측 앱입니다.
+
+## 주요 기능 (프로토타입 v0.1)
+
+- **지금 이 자리의 밤하늘**: 현재 시각과 위치로 별 8,920개(6.5등급까지), 88개 별자리, 달(위상 포함), 수성·금성·화성·목성·토성의 위치를 실시간으로 계산합니다
+- **차 방향 기준 보기**: FusedLocation SDK의 차량 heading으로 앞유리 너머 방향의 하늘을 보여줍니다
+- **선루프 보기**: 머리 위 하늘 전체(천정 시점). 선루프 가림막이 열리면 자동으로 전환하고, 이 모드를 켜면 가림막을 엽니다
+- **관측 모드**: 화면을 붉은색으로 바꾸고 실내등을 끄고 무드등을 최소 밝기로 낮춥니다. 끄면 원래대로 돌아갑니다
+- **별자리 이야기 4편**: 견우와 직녀, 북두칠성이 된 일곱 형제, 오리온과 전갈, 페르세우스와 안드로메다 공주. 고르면 해당 별자리를 강조해서 찾아주고, 지금 안 보이면 잘 보이는 날짜와 시간으로 이동합니다
+- **별·행성·달 정보**: 누르면 이름, 밝기, 거리("이 빛은 25년 전에 출발했어요"), 색과 온도를 쉬운 말로 설명합니다
+- **시간 이동**: ±1시간, 빠르게 돌려보기, 낮에는 "오늘 밤 9시 하늘 보기"
+- **주행 중 사용 제한**: CarUxRestrictions로 주행 중에는 화면을 가리고, 정차하면 보던 하늘을 이어서 보여줍니다
+
+## 구조
+
+| 모듈 | 내용 |
+|---|---|
+| `sky/` | Android에 의존하지 않는 순수 Kotlin 엔진: 천문 계산(항성시, 세차, 태양·달·행성), 별 목록, 투영(스테레오 투영), 화면 그리기 목록 생성, 별자리 이야기. JVM에서 단위 테스트와 미리보기 이미지 생성 |
+| `app/` | Android Automotive 앱: 하늘 그리기(Canvas), 터치 조작, Pleos SDK 연동, 화면 구성 |
+| `tools/` | 별·별자리 데이터 생성 스크립트 |
+
+### 사용하는 Pleos Connect SDK / API
+
+| 기능 | API | 권한 |
+|---|---|---|
+| 차량 위치·방향 | FusedLocation SDK 1.1.3 `registerFusedLocationCallback()` (위도, 경도, heading) | `pleos.car.permission.FUSED_LOCATION` |
+| 관측 모드 조명 | Vehicle SDK 2.3.2 Light `setCabinLightSwitch()`, `setAmbientLightBrightness()` | `pleos.car.permission.CAR_LIGHTS`, `CONTROL_CAR_LIGHTS` |
+| 선루프 가림막 | Vehicle SDK 2.3.2 Window `ROOF_TOP_1` `registerWindowBlindPosition()`, `moveWindowBlind()` | `pleos.car.permission.CAR_WINDOWS`, `CONTROL_CAR_WINDOWS` |
+| 주행 중 제한 | AAOS `CarUxRestrictionsManager` | - |
+
+모든 차량 기능은 capability를 먼저 확인하고, 지원하지 않는 차량(또는 에뮬레이터)에서는 조용히 건너뜁니다.
+차 위치를 받을 수 없으면 "장소" 메뉴의 프리셋(서울, 영양 국제밤하늘보호공원, 화천 조경철천문대, 제주)으로 동작합니다.
+
+## 실행 방법
+
+### 준비
+- Android Studio, Android SDK API 34, JDK 17 이상
+- Pleos Connect Emulator (API 34, Pleos Connect v2.0), Cold boot로 실행
+
+### 빌드와 설치
+```bash
+cd byeolmajung
+./gradlew :app:assembleRelease
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+### 에뮬레이터에서 확인할 것
+- **Virtual Console → Motion → Gear Selection**을 D로 바꾸면 주행 제한 화면이 뜨고, P로 돌리면 보던 하늘로 돌아오는지
+- 차량 위치가 오는지, 안 오면 "장소" 메뉴로 바꿔서 확인
+- "관측 모드"를 켤 때 Virtual Console의 Cabin Lights, Ambient Brightness가 바뀌는지
+
+### 테스트와 미리보기 (에뮬레이터 없이)
+```bash
+./gradlew :sky:test
+# 미리보기 이미지: sky/build/preview/*.png
+```
+천문 계산은 Meeus 예제(항성시), 북극성 고도 = 위도, 2026년 춘분·하지 태양 적위, 2026년 3월 보름달·삭으로 검증합니다.
+
+## 확인이 필요한 가정
+
+- **선루프 가림막 값의 방향**: 문서에 열림/닫힘 방향이 나와 있지 않아서, AAOS `WINDOW_POS`처럼 최댓값이 "완전히 열림", `MoveControl.FORWARD`가 "여는 방향"이라고 가정했습니다 (`VehicleServices.kt`). 에뮬레이터나 실차에서 확인 후 수정합니다.
+- **조명·창문 제어 권한**: Pleos Playground에서 차량 제어 SDK가 "준비 중"으로 표시되어 있어, 현재는 권한이 거부될 수 있습니다. 거부되면 화면만 붉게 바뀝니다.
+
+## 데이터 출처와 라이선스
+
+| 데이터 | 출처 | 라이선스 |
+|---|---|---|
+| 별 위치·밝기·색·거리 (`stars.csv`) | [HYG Database v4.4](https://codeberg.org/astronexus/hyg) (astronexus) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| 별자리 선과 이름 (`constellations.txt`) | [d3-celestial](https://github.com/ofrohn/d3-celestial) (Olaf Frohn) | BSD 3-Clause |
+| 행성 궤도 요소 | JPL "Keplerian Elements for Approximate Positions of the Major Planets" (E. M. Standish) | 공개 자료 |
+
+`stars.csv`는 HYG 데이터베이스를 가공한 것이므로 CC BY-SA 4.0을 따릅니다. 별자리 이야기와 앱 코드, 아이콘은 직접 작성했습니다.
+
+데이터를 다시 만들려면 위 출처에서 `hyg_v44.csv`, `constellations.lines.json`, `constellations.json`을 받은 뒤 실행합니다.
+```bash
+python3 tools/prepare_sky_data.py <받은 폴더> app/src/main/assets/sky
+```
