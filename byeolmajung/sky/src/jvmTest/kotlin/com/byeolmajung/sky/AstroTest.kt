@@ -113,11 +113,20 @@ class StoryTest {
     fun orionIsBestInWinterEvenings() {
         val from = java.time.ZonedDateTime.parse("2026-08-01T12:00:00+09:00").toInstant()
         val orion = Stories.all.first { it.id == "orion_scorpion" }.focus
-        val t = assertNotNull(Visibility.nextGoodTime(orion, seoul, from, zone))
-        val local = java.time.ZonedDateTime.ofInstant(t, zone)
+        val t = assertNotNull(Visibility.nextGoodTime(orion, seoul, from.toEpochMilli(), utcOffsetMinutes = 540))
+        val local = java.time.ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(t), zone)
         // Orion climbs 35° high before dawn from late summer/autumn; it must be found well before next summer.
         assertTrue(local.isBefore(java.time.ZonedDateTime.parse("2026-12-31T00:00:00+09:00")), "found $local")
         assertTrue(local.hour in 0..4 || local.hour >= 20, "should be night, was $local")
+    }
+
+    @Test
+    fun numberFormattingIsPlatformIndependent() {
+        assertEquals("1.5", Describe.oneDecimal(1.46))
+        assertEquals("-0.7", Describe.oneDecimal(-0.72))
+        assertEquals("0.0", Describe.oneDecimal(-0.01))
+        assertEquals("1,300", Describe.thousands(1300))
+        assertEquals("25", Describe.thousands(25))
     }
 
     @Test

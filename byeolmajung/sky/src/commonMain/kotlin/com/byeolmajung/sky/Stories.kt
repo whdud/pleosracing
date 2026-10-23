@@ -1,9 +1,5 @@
 package com.byeolmajung.sky
 
-import java.time.Instant
-import java.time.ZoneId
-import java.time.ZonedDateTime
-
 /** A constellation story for children. Written for this app; the legends themselves are traditional. */
 data class Story(
     val id: String,
@@ -81,18 +77,23 @@ object Stories {
 /** Finds when a part of the sky is well placed for viewing. */
 object Visibility {
 
+    private const val HOUR = 3_600_000L
+    private const val DAY = 24 * HOUR
+
     /**
-     * The next evening-to-dawn time (checked hourly from 8 p.m. to 4 a.m.) when [target] is at least
+     * The next evening-to-dawn time (checked hourly from 8 p.m. to 4 a.m. local time) when [target] is at least
      * [minAltitude] high and the sky is dark, searching up to a year ahead. Returns null if never.
+     *
+     * @param utcOffsetMinutes the observer's time zone offset, e.g. 540 for Korea.
      */
-    fun nextGoodTime(target: Equatorial, observer: Observer, from: Instant, zone: ZoneId, minAltitude: Double = 35.0): Instant? {
-        if (isGood(target, observer, from.toEpochMilli(), minAltitude)) return from
-        val start = ZonedDateTime.ofInstant(from, zone).toLocalDate()
+    fun nextGoodTime(target: Equatorial, observer: Observer, fromMillis: Long, utcOffsetMinutes: Int, minAltitude: Double = 35.0): Long? {
+        if (isGood(target, observer, fromMillis, minAltitude)) return fromMillis
+        val offset = utcOffsetMinutes * 60_000L
+        val localMidnight = Math2.floorDiv(fromMillis + offset, DAY) * DAY - offset
         for (day in 0..366) {
-            val date = start.plusDays(day.toLong())
-            for (hour in listOf(20, 21, 22, 23, 24, 25, 26, 27, 28)) {
-                val t = date.atStartOfDay(zone).plusHours(hour.toLong()).toInstant()
-                if (t.isAfter(from) && isGood(target, observer, t.toEpochMilli(), minAltitude)) return t
+            for (hour in 20..28) {
+                val t = localMidnight + day * DAY + hour * HOUR
+                if (t > fromMillis && isGood(target, observer, t, minAltitude)) return t
             }
         }
         return null
@@ -103,5 +104,12 @@ object Visibility {
         if (tf.toHorizontal(target).alt < minAltitude) return false
         val sun = SolarSystem.bodies(millis).first { it.kind == BodyKind.SUN }
         return tf.toHorizontalOfDate(sun.equatorial).alt < -12
+    }
+}
+
+internal object Math2 {
+    fun floorDiv(a: Long, b: Long): Long {
+        val q = a / b
+        return if ((a % b != 0L) && ((a < 0) != (b < 0))) q - 1 else q
     }
 }

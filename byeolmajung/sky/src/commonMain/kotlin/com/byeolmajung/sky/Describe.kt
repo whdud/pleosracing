@@ -25,10 +25,10 @@ object Describe {
         val constellation = catalog.constellation(star.constellation)
         val title = star.nameKo ?: star.properName.ifEmpty { "${constellation?.nameKo ?: "이름 없는"}의 별" }
         val body = buildString {
-            append("밝기는 ${"%.1f".format(star.magnitude)}등급이에요. ")
+            append("밝기는 ${oneDecimal(star.magnitude)}등급이에요. ")
             append(brightnessWords(star.magnitude))
             star.lightYears?.let {
-                append("\n\n지구에서 약 ${"%,d".format(it)}광년 떨어져 있어요. 지금 보는 이 별빛은 ${"%,d".format(it)}년 전에 출발한 빛이에요!")
+                append("\n\n지구에서 약 ${thousands(it)}광년 떨어져 있어요. 지금 보는 이 별빛은 ${thousands(it)}년 전에 출발한 빛이에요!")
             }
             append("\n\n").append(colorWords(star.colorIndex))
         }
@@ -72,6 +72,15 @@ object Describe {
         phase < 0.4 -> if (waxing) "초승달" else "그믐달"
         else -> if (waxing) "차오르는 달" else "기우는 달"
     }
+
+    /** "1.5", "-0.7": platform-independent, unlike String.format. */
+    internal fun oneDecimal(x: Double): String {
+        val tenths = kotlin.math.round(kotlin.math.abs(x) * 10).toLong()
+        return (if (x < 0 && tenths > 0) "-" else "") + "${tenths / 10}.${tenths % 10}"
+    }
+
+    /** "1,300" */
+    internal fun thousands(n: Int): String = n.toString().reversed().chunked(3).joinToString(",").reversed()
 
     private fun brightnessWords(mag: Double) = when {
         mag < 0.5 -> "밤하늘에서 가장 밝은 별 중 하나예요."

@@ -23,7 +23,7 @@ class SkyPreviewTest {
 
     private val catalog: SkyCatalog by lazy {
         val dir = File(System.getProperty("assets.dir"), "sky")
-        SkyCatalog.parse(File(dir, "stars.csv").bufferedReader(), File(dir, "constellations.txt").bufferedReader())
+        SkyCatalog.parse(File(dir, "stars.csv").readText(), File(dir, "constellations.txt").readText())
     }
 
     private val outDir = File(System.getProperty("preview.dir")).apply { mkdirs() }

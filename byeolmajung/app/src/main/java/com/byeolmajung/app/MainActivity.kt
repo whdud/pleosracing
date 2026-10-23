@@ -98,8 +98,8 @@ class MainActivity : Activity() {
 
         thread(name = "catalog") {
             val loaded = SkyCatalog.parse(
-                assets.open("sky/stars.csv").bufferedReader(),
-                assets.open("sky/constellations.txt").bufferedReader(),
+                assets.open("sky/stars.csv").bufferedReader().readText(),
+                assets.open("sky/constellations.txt").bufferedReader().readText(),
             )
             val texture = android.graphics.BitmapFactory.decodeStream(assets.open("sky/milkyway.jpg")).let { bmp ->
                 val pixels = IntArray(bmp.width * bmp.height)
@@ -266,7 +266,8 @@ class MainActivity : Activity() {
         if (h.alt > 10) {
             sky.lookAt(h)
         } else {
-            val when_ = Visibility.nextGoodTime(story.focus, observer, Instant.ofEpochMilli(displayTime), zone)
+            val offsetMinutes = zone.rules.getOffset(Instant.ofEpochMilli(displayTime)).totalSeconds / 60
+            val when_ = Visibility.nextGoodTime(story.focus, observer, displayTime, offsetMinutes)?.let(Instant::ofEpochMilli)
             if (when_ != null) {
                 timeOffsetMillis = when_.toEpochMilli() - System.currentTimeMillis()
                 refreshSky()

@@ -19,7 +19,7 @@
 
 | 모듈 | 내용 |
 |---|---|
-| `sky/` | Android에 의존하지 않는 순수 Kotlin 엔진: 천문 계산(항성시, 세차, 태양·달·행성), 별 목록, 투영(스테레오 투영), 화면 그리기 목록 생성, 별자리 이야기. JVM에서 단위 테스트와 미리보기 이미지 생성 |
+| `sky/` | Kotlin Multiplatform(JVM + JS) 순수 Kotlin 엔진: 천문 계산(항성시, 세차, 태양·달·행성), 별 목록, 투영(스테레오 투영), 화면 그리기 목록 생성, 별자리 이야기. JVM에서 단위 테스트와 미리보기 이미지 생성 |
 | `app/` | Android Automotive 앱: 하늘 그리기(Canvas), 터치 조작, Pleos SDK 연동, 화면 구성 |
 | `tools/` | 별·별자리 데이터 생성 스크립트 |
 
@@ -48,6 +48,12 @@ cd byeolmajung
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
+### 웹 데모 (브라우저에서 바로 조작)
+같은 하늘 엔진(`sky/`)을 Kotlin/JS로 컴파일한 웹 버전입니다. 차 전용 기능(차 위치·방향, 조명, 선루프)은 장소 선택과 화면 효과로 대신합니다.
+```bash
+./gradlew :sky:webDemo   # 결과: sky/build/web (index.html, byeolmajung.js, sky/ 데이터)
+```
+
 ### Pleos 에뮬레이터 없이 PC에서 보기 (Windows)
 Pleos 이미지를 받기 전에도 구글의 일반 Android Automotive 에뮬레이터로 화면을 볼 수 있습니다.
 1. [Android Studio](https://developer.android.com/studio)를 설치합니다.
@@ -65,7 +71,7 @@ Pleos 이미지를 받기 전에도 구글의 일반 Android Automotive 에뮬�
 
 ### 테스트와 미리보기 (에뮬레이터 없이)
 ```bash
-./gradlew :sky:test               # 천문 계산 테스트 + 하늘 미리보기: sky/build/preview/*.png
+./gradlew :sky:jvmTest            # 천문 계산 테스트 + 하늘 미리보기: sky/build/preview/*.png
 ./gradlew :app:testDebugUnitTest  # 실제 앱 화면 스크린샷 (Robolectric): app/build/screenshots/*.png
 ```
 앱 스크린샷 테스트는 실제 `MainActivity`를 띄워 장소 선택, 별자리 선, 이야기, 선루프 보기, 관측 모드를 차례로 눌러 보며 화면을 저장합니다. Pleos 서비스가 없는 환경이라 일반 에뮬레이터와 같은 상태로 동작합니다.

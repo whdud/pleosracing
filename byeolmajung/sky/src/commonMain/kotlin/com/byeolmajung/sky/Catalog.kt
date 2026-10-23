@@ -1,7 +1,5 @@
 package com.byeolmajung.sky
 
-import java.io.BufferedReader
-
 /** A catalog star. Position is J2000. */
 data class Star(
     val hip: Int,
@@ -33,11 +31,11 @@ class SkyCatalog(val stars: List<Star>, val constellations: List<Constellation>)
 
     companion object {
         /** Stars are kept faintest first, which is also the order they are painted in (bright ones on top). */
-        fun parse(starsCsv: BufferedReader, constellationsTxt: BufferedReader): SkyCatalog =
+        fun parse(starsCsv: String, constellationsTxt: String): SkyCatalog =
             SkyCatalog(parseStars(starsCsv).sortedByDescending { it.magnitude }, parseConstellations(constellationsTxt))
 
-        fun parseStars(reader: BufferedReader): List<Star> = reader.useLines { lines ->
-            lines.drop(1).filter { it.isNotBlank() }.map { line ->
+        fun parseStars(csv: String): List<Star> =
+            csv.lineSequence().drop(1).filter { it.isNotBlank() }.map { line ->
                 val f = line.split(',')
                 Star(
                     hip = f[0].toInt(),
@@ -49,9 +47,8 @@ class SkyCatalog(val stars: List<Star>, val constellations: List<Constellation>)
                     lightYears = f.getOrNull(7)?.toIntOrNull()?.takeIf { it > 0 },
                 )
             }.toList()
-        }
 
-        fun parseConstellations(reader: BufferedReader): List<Constellation> {
+        fun parseConstellations(text: String): List<Constellation> {
             val result = mutableListOf<Constellation>()
             var header: List<String>? = null
             var lines = mutableListOf<List<Equatorial>>()
@@ -61,8 +58,7 @@ class SkyCatalog(val stars: List<Star>, val constellations: List<Constellation>)
                 result += Constellation(h[1], h[2], h[3], Equatorial(h[4].toDouble(), h[5].toDouble()), lines)
             }
 
-            reader.useLines { input ->
-                input.filter { it.isNotBlank() }.forEach { line ->
+            text.lineSequence().filter { it.isNotBlank() }.forEach { line ->
                     when {
                         line.startsWith("C|") -> {
                             flush()
@@ -74,7 +70,6 @@ class SkyCatalog(val stars: List<Star>, val constellations: List<Constellation>)
                             Equatorial(ra.toDouble(), dec.toDouble())
                         }
                     }
-                }
             }
             flush()
             return result

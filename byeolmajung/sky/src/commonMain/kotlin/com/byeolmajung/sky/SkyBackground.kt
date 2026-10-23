@@ -106,7 +106,7 @@ class SkyBackground(private val milkyWay: SkyTexture?) {
         val y0 = floor(y).toInt()
         val fx = x - x0
         val fy = y - y0
-        fun px(ix: Int, iy: Int) = tex.pixels[(iy.coerceIn(0, tex.height - 1)) * tex.width + Math.floorMod(ix, tex.width)]
+        fun px(ix: Int, iy: Int) = tex.pixels[(iy.coerceIn(0, tex.height - 1)) * tex.width + ((ix % tex.width) + tex.width) % tex.width]
         val c00 = px(x0, y0)
         val c10 = px(x0 + 1, y0)
         val c01 = px(x0, y0 + 1)
