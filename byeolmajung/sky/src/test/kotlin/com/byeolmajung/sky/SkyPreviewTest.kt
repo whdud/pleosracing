@@ -53,19 +53,19 @@ class SkyPreviewTest {
         val seoul = Observer(37.5665, 126.9780)
 
         render("summer_south_milkyway", SkySnapshot.compute(catalog, newMoonSummer, yeongyang),
-            Camera(ViewMode.WINDSHIELD, 175.0, 22.0, 70.0, 1920, 720), SceneOptions())
+            Camera(ViewMode.WINDSHIELD, 175.0, 15.0, 100.0, 1920, 720), SceneOptions())
         render("summer_sunroof", SkySnapshot.compute(catalog, summer, yeongyang),
             Camera(ViewMode.SUNROOF, 0.0, 90.0, 180.0, 1920, 720), SceneOptions(highlightConstellations = setOf("Lyr", "Aql")))
         render("winter_south_windshield", SkySnapshot.compute(catalog, winter, yeongyang),
-            Camera(ViewMode.WINDSHIELD, 180.0, 25.0, 70.0, 1920, 720), SceneOptions(highlightConstellations = setOf("Ori")))
+            Camera(ViewMode.WINDSHIELD, 180.0, 15.0, 100.0, 1920, 720), SceneOptions(highlightConstellations = setOf("Ori")))
         render("tonight_south_lines", SkySnapshot.compute(catalog, tonight, yeongyang),
-            Camera(ViewMode.WINDSHIELD, 180.0, 25.0, 70.0, 1920, 720), SceneOptions(showConstellations = true))
+            Camera(ViewMode.WINDSHIELD, 180.0, 15.0, 100.0, 1920, 720), SceneOptions(showConstellations = true))
         render("tonight_south_nightred", SkySnapshot.compute(catalog, tonight, yeongyang),
-            Camera(ViewMode.WINDSHIELD, 180.0, 25.0, 70.0, 1920, 720), SceneOptions(nightRed = true))
+            Camera(ViewMode.WINDSHIELD, 180.0, 15.0, 100.0, 1920, 720), SceneOptions(nightRed = true))
         render("winter_moon_west", SkySnapshot.compute(catalog, winter, yeongyang),
-            Camera(ViewMode.WINDSHIELD, 250.0, 30.0, 70.0, 1920, 720), SceneOptions())
+            Camera(ViewMode.WINDSHIELD, 250.0, 15.0, 100.0, 1920, 720), SceneOptions())
         render("tonight_seoul_city", SkySnapshot.compute(catalog, tonight, seoul),
-            Camera(ViewMode.WINDSHIELD, 180.0, 25.0, 70.0, 1920, 720), SceneOptions(skyQuality = 0.8))
+            Camera(ViewMode.WINDSHIELD, 180.0, 15.0, 100.0, 1920, 720), SceneOptions(skyQuality = 0.8))
     }
 
     private fun render(name: String, snapshot: SkySnapshot, camera: Camera, options: SceneOptions) {
@@ -88,16 +88,29 @@ class SkyPreviewTest {
             g.stroke = BasicStroke(it.width, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
             g.drawLine(it.x1.toInt(), it.y1.toInt(), it.x2.toInt(), it.y2.toInt())
         }
+        val stops = floatArrayOf(0f, 0.06f, 0.12f, 0.2f, 0.3f, 0.45f, 0.65f, 1f)
         frame.stars.forEach {
+            val c = Color(it.color, true)
             if (it.glow > 0) {
-                val c = Color(it.color, true)
-                val r = it.radius * (2.5f + 4f * it.glow)
+                val r = it.radius * StarDot.EXTENT * (2f + 2.5f * it.glow)
                 g.paint = java.awt.RadialGradientPaint(it.x, it.y, r, floatArrayOf(0f, 1f),
-                    arrayOf(Color(c.red, c.green, c.blue, (90 * it.glow).toInt() + 20), Color(c.red, c.green, c.blue, 0)))
+                    arrayOf(Color(c.red, c.green, c.blue, (40 * it.glow).toInt()), Color(c.red, c.green, c.blue, 0)))
                 g.fill(Ellipse2D.Float(it.x - r, it.y - r, r * 2, r * 2))
             }
-            g.color = Color(it.color, true)
-            g.fill(Ellipse2D.Float(it.x - it.radius, it.y - it.radius, it.radius * 2, it.radius * 2))
+            val r = it.radius * StarDot.EXTENT
+            // Whiter at the center, star color in the wings.
+            val colors = stops.map { t ->
+                val k = StarDot.profile(t)
+                val white = (1 - t / 0.15f).coerceIn(0f, 1f)
+                Color(
+                    (c.red + (255 - c.red) * white).toInt(),
+                    (c.green + (255 - c.green) * white).toInt(),
+                    (c.blue + (255 - c.blue) * white).toInt(),
+                    (c.alpha * k).toInt().coerceIn(0, 255),
+                )
+            }.toTypedArray()
+            g.paint = java.awt.RadialGradientPaint(it.x, it.y, r, stops, colors)
+            g.fill(Ellipse2D.Float(it.x - r, it.y - r, r * 2, r * 2))
         }
         frame.bodies.forEach {
             if (it.kind == BodyKind.MOON || it.kind == BodyKind.SUN) {

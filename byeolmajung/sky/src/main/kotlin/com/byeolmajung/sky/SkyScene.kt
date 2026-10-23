@@ -12,8 +12,29 @@ sealed interface SkyObject {
 }
 
 /** Draw primitives in screen pixels. Colors are ARGB. Platform renderers (Android Canvas, AWT preview) paint these. */
+
+/**
+ * A star drawn as a soft point: bright at the center and fading smoothly to nothing at [StarDot.EXTENT] × [radius],
+ * like the blur of starlight in the eye or a camera, never as a hard-edged disc.
+ * [glow] (0..1) adds a wider faint halo for the brightest stars.
+ */
+data class StarDot(val x: Float, val y: Float, val radius: Float, val color: Int, val glow: Float) {
+    companion object {
+        const val EXTENT = 3f
+
+        /**
+         * Brightness profile at distance [r] from the center, in units of the drawn extent (0..1).
+         * A sharp core plus a softer wing, shared by every renderer so they look the same.
+         */
+        fun profile(r: Float): Float {
+            val core = kotlin.math.exp(-(r * r) / (2 * 0.17f * 0.17f))
+            val wing = 0.45f * kotlin.math.exp(-(r * r) / (2 * 0.36f * 0.36f))
+            return (core + wing).coerceAtMost(1f) * (1 - r).coerceIn(0f, 1f)
+        }
+    }
+}
+
 data class LineSeg(val x1: Float, val y1: Float, val x2: Float, val y2: Float, val color: Int, val width: Float)
-data class StarDot(val x: Float, val y: Float, val radius: Float, val color: Int, val glow: Float)
 data class BodyDisc(val x: Float, val y: Float, val radius: Float, val color: Int, val kind: BodyKind, val phase: Double, val waxing: Boolean)
 data class Label(val text: String, val x: Float, val y: Float, val size: Float, val color: Int, val bold: Boolean = false)
 data class Ring(val x: Float, val y: Float, val radius: Float, val color: Int, val width: Float)
@@ -150,9 +171,14 @@ object SkyScene {
             val (radius, color) = when (body.kind) {
                 BodyKind.SUN -> 18f * d to 0xFFFFE8A0.toInt()
                 BodyKind.MOON -> 16f * d to 0xFFEDEBE0.toInt()
-                BodyKind.PLANET -> (starRadius(body.magnitude) + 1f) * d to PLANET_COLORS.getValue(body.id)
+                BodyKind.PLANET -> starRadius(body.magnitude) * d to PLANET_COLORS.getValue(body.id)
             }
-            bodies += BodyDisc(p.x, p.y, radius, tint(color), body.kind, body.phase, body.waxing)
+            if (body.kind == BodyKind.PLANET) {
+                // To the naked eye a planet is a bright, steady point, not a disc.
+                stars += StarDot(p.x, p.y, radius, tint(color), glow = ((1.5 - body.magnitude) / 4).coerceIn(0.2, 1.0).toFloat())
+            } else {
+                bodies += BodyDisc(p.x, p.y, radius, tint(color), body.kind, body.phase, body.waxing)
+            }
             labels += Label(body.nameKo, p.x + radius + 6f * d, p.y + radius + 14f * d, 15f * d, tint(color), bold = true)
             hits += HitTarget(p.x, p.y, radius + 8f * d, SkyObject.BodyObject(body), priority = 0)
             if (options.selected is SkyObject.BodyObject && options.selected.body.id == body.id) {
@@ -270,9 +296,9 @@ object SkyScene {
         else -> 0xFF3E7CC9.toInt() to 0xFFA8CBEB.toInt()
     }
 
-    internal fun starRadius(mag: Double): Float = (0.7 + (6.5 - mag).coerceAtLeast(0.0).pow(1.5) * 0.27).toFloat().coerceAtMost(7.5f)
+    internal fun starRadius(mag: Double): Float = (1.0 + (6.5 - mag).coerceAtLeast(0.0).pow(1.45) * 0.24).toFloat().coerceAtMost(6.5f)
 
-    private fun starAlpha(mag: Double, limit: Double): Float = ((limit - mag + 0.3) / 2.2).coerceIn(0.12, 1.0).toFloat()
+    private fun starAlpha(mag: Double, limit: Double): Float = ((limit - mag + 0.5) / 2.0).coerceIn(0.2, 1.0).toFloat()
 
     /** Approximate star color from the B−V color index (Ballesteros temperature, then a blackbody fit). */
     internal fun bvToRgb(bv: Double): Int {
@@ -314,8 +340,8 @@ object Landscape {
     /** Altitude of the skyline in degrees at an azimuth. */
     fun skyline(az: Double): Double {
         val a = az * DEG
-        val hills = 1.1 + 0.9 * kotlin.math.sin(a * 2 + 0.7) + 0.55 * kotlin.math.sin(a * 5 + 2.1) + 0.3 * kotlin.math.sin(a * 11 + 0.4)
-        return hills.coerceAtLeast(0.25) + trees(az)
+        val hills = 0.55 + 0.45 * kotlin.math.sin(a * 2 + 0.7) + 0.3 * kotlin.math.sin(a * 5 + 2.1) + 0.15 * kotlin.math.sin(a * 11 + 0.4)
+        return hills.coerceAtLeast(0.1) + trees(az)
     }
 
     private fun trees(az: Double): Double {
@@ -324,7 +350,7 @@ object Landscape {
         if (clump < 0.55) return 0.0
         val cell = kotlin.math.floor(az / 1.6)
         val t = (az / 1.6 - cell) * 2 - 1
-        val height = 1.2 + 1.8 * hash(cell) * (clump - 0.55)
+        val height = 0.5 + 1.0 * hash(cell) * (clump - 0.55)
         return height * kotlin.math.sqrt((1 - t * t).coerceAtLeast(0.0))
     }
 

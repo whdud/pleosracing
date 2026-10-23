@@ -34,7 +34,7 @@ class SkyView(context: Context) : View(context) {
     var mode = ViewMode.WINDSHIELD
         set(value) {
             field = value
-            fieldOfView = if (value == ViewMode.SUNROOF) 180.0 else 70.0
+            fieldOfView = if (value == ViewMode.SUNROOF) 180.0 else DEFAULT_FOV
             invalidate()
         }
 
@@ -62,8 +62,8 @@ class SkyView(context: Context) : View(context) {
     var onViewChanged: (() -> Unit)? = null
 
     private var headingOffset = 0.0
-    private var altitude = 25.0
-    private var fieldOfView = 70.0
+    private var altitude = DEFAULT_ALTITUDE
+    private var fieldOfView = DEFAULT_FOV
     private var backgroundImage: BackgroundImage? = null
     private var backgroundKey: List<Any>? = null
     private var frame: SkyFrame? = null
@@ -76,14 +76,14 @@ class SkyView(context: Context) : View(context) {
 
     val isFollowingCar: Boolean get() = headingOffset == 0.0
 
-    fun followCar() = animateTo(0.0, 25.0)
+    fun followCar() = animateTo(0.0, DEFAULT_ALTITUDE)
 
     /** Turns the view toward a point in the sky (windshield mode). */
     fun lookAt(target: Horizontal) {
         if (mode == ViewMode.SUNROOF) return
         var offset = target.az - carHeading
         offset = ((offset + 540) % 360) - 180
-        animateTo(offset, target.alt.coerceIn(10.0, 70.0))
+        animateTo(offset, (target.alt - 10).coerceIn(DEFAULT_ALTITUDE, 70.0))
     }
 
     private fun animateTo(offset: Double, alt: Double) {
@@ -154,7 +154,7 @@ class SkyView(context: Context) : View(context) {
 
     private val scale = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
-            val range = if (mode == ViewMode.SUNROOF) 90.0..200.0 else 25.0..140.0
+            val range = if (mode == ViewMode.SUNROOF) 90.0..200.0 else 30.0..150.0
             fieldOfView = (fieldOfView / detector.scaleFactor).coerceIn(range)
             invalidate()
             return true
@@ -169,4 +169,12 @@ class SkyView(context: Context) : View(context) {
     }
 
     override fun performClick(): Boolean = super.performClick()
+
+    companion object {
+        /** Horizontal field of view through the windshield, close to Stellarium's default framing on a wide screen. */
+        const val DEFAULT_FOV = 100.0
+
+        /** Keeps the horizon near the bottom of the screen, as when looking out of the windshield. */
+        const val DEFAULT_ALTITUDE = 15.0
+    }
 }

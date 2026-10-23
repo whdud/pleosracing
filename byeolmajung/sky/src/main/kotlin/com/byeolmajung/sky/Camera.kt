@@ -30,7 +30,10 @@ class Camera(
     val azimuth: Double,
     /** Altitude of the view center. Ignored in sunroof mode. */
     val altitude: Double,
-    /** Field of view across the shorter screen side, degrees. */
+    /**
+     * Field of view in degrees: across the screen width in windshield mode (wide car displays stay
+     * natural, like Stellarium's horizontal view), across the shorter side in sunroof mode (so the whole sky fits).
+     */
     val fieldOfView: Double,
     val width: Int,
     val height: Int,
@@ -45,7 +48,8 @@ class Camera(
     private val rx: Double
     private val ry: Double
     private val rz: Double
-    private val scale: Double = (minOf(width, height) / 2.0) / (2 * tan(fieldOfView * DEG / 4))
+    private val scale: Double =
+        ((if (mode == ViewMode.SUNROOF) minOf(width, height) else width) / 2.0) / (2 * tan(fieldOfView * DEG / 4))
 
     init {
         val (f, u) = when (mode) {
