@@ -75,6 +75,25 @@ class Camera(
         return ScreenPoint((width / 2.0 + scale * x).toFloat(), (height / 2.0 - scale * y).toFloat())
     }
 
+    /**
+     * Inverse projection: the (east, north, up) unit direction seen at a screen pixel, written into [out].
+     * Returns false for pixels outside the projectable area.
+     */
+    fun unproject(sx: Float, sy: Float, out: DoubleArray): Boolean {
+        val px = (sx - width / 2.0) / scale
+        val py = (height / 2.0 - sy) / scale
+        val rho2 = px * px + py * py
+        val z = (4 - rho2) / (4 + rho2)
+        if (z < -0.95) return false
+        val k = (1 + z) / 2
+        val x = px * k
+        val y = py * k
+        out[0] = x * rx + y * ux + z * fx
+        out[1] = x * ry + y * uy + z * fy
+        out[2] = x * rz + y * uz + z * fz
+        return true
+    }
+
     fun isOnScreen(p: ScreenPoint, margin: Float = 0f) =
         p.x >= -margin && p.y >= -margin && p.x <= width + margin && p.y <= height + margin
 

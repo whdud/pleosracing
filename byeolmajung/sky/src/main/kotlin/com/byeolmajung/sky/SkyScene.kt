@@ -31,6 +31,9 @@ data class SkyFrame(
      */
     val horizon: Ring,
     val groundOutside: Boolean,
+    /** Distant hills and trees standing on the horizon: a closed polygon painted in [terrainColor]. */
+    val terrain: List<ScreenPoint>,
+    val terrainColor: Int,
     val lines: List<LineSeg>,
     val stars: List<StarDot>,
     val bodies: List<BodyDisc>,
@@ -50,7 +53,10 @@ data class SkyFrame(
 
 data class SceneOptions(
     val nightRed: Boolean = false,
-    val showConstellations: Boolean = true,
+    /** Constellation lines and names. Off by default for a natural sky; stories still highlight theirs. */
+    val showConstellations: Boolean = false,
+    /** 0 for a dark site, 1 for a city sky: fewer stars and a brighter horizon. */
+    val skyQuality: Double = 0.0,
     val highlightConstellations: Set<String> = emptySet(),
     val selected: SkyObject? = null,
     /** Multiplier for star and label sizes, e.g. display density. */
@@ -67,7 +73,8 @@ object SkyScene {
     private const val STAR_LABEL = 0xFFDCE6F5.toInt()
     private const val CARDINAL = 0xFFB9C7DE.toInt()
     private const val SELECTION = 0xFF7FE0FF.toInt()
-    private const val GROUND = 0xFF0A0D12.toInt()
+    private const val GROUND = 0xFF06080B.toInt()
+    private const val TERRAIN = GROUND
     private const val HORIZON_LINE = 0xFF2C3A52.toInt()
 
     private val CARDINALS = listOf("북" to 0.0, "북동" to 45.0, "동" to 90.0, "남동" to 135.0, "남" to 180.0, "남서" to 225.0, "서" to 270.0, "북서" to 315.0)
@@ -76,7 +83,7 @@ object SkyScene {
         val d = options.density
         val tint: (Int) -> Int = if (options.nightRed) ::toNightRed else { c -> c }
         val sunAlt = snapshot.sunAltitude
-        val limitingMagnitude = limitingMagnitude(sunAlt)
+        val limitingMagnitude = minOf(limitingMagnitude(sunAlt), 6.5 - 2.5 * options.skyQuality)
         val (skyTop, skyBottom) = skyColors(sunAlt)
 
         val lines = mutableListOf<LineSeg>()
@@ -122,13 +129,14 @@ object SkyScene {
             if (!camera.isOnScreen(p, 10f)) continue
             val radius = starRadius(star.magnitude) * d
             val alpha = starAlpha(star.magnitude, limitingMagnitude)
-            stars += StarDot(p.x, p.y, radius, tint(withAlpha(bvToRgb(star.colorIndex), alpha)), glow = if (star.magnitude < 1.5) 1f else 0f)
+            val glow = ((2.2 - star.magnitude) / 3.5).coerceIn(0.0, 1.0).toFloat()
+            stars += StarDot(p.x, p.y, radius, tint(withAlpha(bvToRgb(star.colorIndex), alpha)), glow)
             if (star.magnitude < 4.5) {
                 hits += HitTarget(p.x, p.y, radius + 6f * d, SkyObject.StarObject(i, star), priority = if (star.magnitude < 2) 1 else 2)
             }
             val name = star.nameKo
-            if (name != null && star.magnitude < 2.1) {
-                labels += Label(name, p.x + radius + 6f * d, p.y - radius - 4f * d, 14f * d, tint(STAR_LABEL))
+            if (name != null && star.magnitude < (if (options.showConstellations) 2.1 else 1.3)) {
+                labels += Label(name, p.x + radius + 8f * d, p.y - radius - 6f * d, 13f * d, tint(STAR_LABEL))
             }
             if (options.selected is SkyObject.StarObject && options.selected.index == i) {
                 rings += Ring(p.x, p.y, radius + 14f * d, tint(SELECTION), 2.5f * d)
@@ -152,8 +160,9 @@ object SkyScene {
             }
         }
 
-        // Horizon, ground and compass directions.
-        val horizon = horizonCircle(camera, tint(HORIZON_LINE), 2f * d)
+        // Horizon, terrain, ground and compass directions.
+        val horizon = horizonCircle(camera, tint(HORIZON_LINE), 0f)
+        val terrain = terrainPolygon(camera)
         val cardinalAlt = if (camera.mode == ViewMode.SUNROOF) 4.0 else 0.0
         val cardinalOffset = if (camera.mode == ViewMode.SUNROOF) 0f else 30f * d
         CARDINALS.forEach { (text, az) ->
@@ -170,6 +179,8 @@ object SkyScene {
             groundColor = tint(GROUND),
             horizon = horizon,
             groundOutside = camera.mode == ViewMode.SUNROOF || camera.altitude > 0,
+            terrain = terrain,
+            terrainColor = tint(TERRAIN),
             lines = lines,
             stars = stars,
             bodies = bodies,
@@ -187,6 +198,23 @@ object SkyScene {
         "jupiter" to 0xFFF5DDB5.toInt(),
         "saturn" to 0xFFEFD99A.toInt(),
     )
+
+    /**
+     * A band from just below the horizon up to the skyline: rolling hills with clumps of trees.
+     * In windshield mode only the part in front is built (points behind the viewer cannot be projected).
+     */
+    private fun terrainPolygon(camera: Camera): List<ScreenPoint> {
+        val (from, to) = if (camera.mode == ViewMode.SUNROOF) 0.0 to 360.0 else camera.azimuth - 150 to camera.azimuth + 150
+        val top = mutableListOf<ScreenPoint>()
+        val bottom = mutableListOf<ScreenPoint>()
+        var az = from
+        while (az <= to + 1e-9) {
+            camera.project(Landscape.skyline(az), az)?.let(top::add)
+            camera.project(-3.0, az)?.let(bottom::add)
+            az += 0.5
+        }
+        return top + bottom.asReversed()
+    }
 
     /** Circle through three projected horizon points (stereographic projection maps circles to circles). */
     private fun horizonCircle(camera: Camera, color: Int, width: Float): Ring {
@@ -242,9 +270,9 @@ object SkyScene {
         else -> 0xFF3E7CC9.toInt() to 0xFFA8CBEB.toInt()
     }
 
-    internal fun starRadius(mag: Double): Float = (1.0 + (6.5 - mag).coerceAtLeast(0.0).pow(1.35) * 0.42).toFloat().coerceAtMost(9f)
+    internal fun starRadius(mag: Double): Float = (0.7 + (6.5 - mag).coerceAtLeast(0.0).pow(1.5) * 0.27).toFloat().coerceAtMost(7.5f)
 
-    private fun starAlpha(mag: Double, limit: Double): Float = ((limit - mag + 0.6) / 1.6).coerceIn(0.25, 1.0).toFloat()
+    private fun starAlpha(mag: Double, limit: Double): Float = ((limit - mag + 0.3) / 2.2).coerceIn(0.12, 1.0).toFloat()
 
     /** Approximate star color from the B−V color index (Ballesteros temperature, then a blackbody fit). */
     internal fun bvToRgb(bv: Double): Int {
@@ -278,5 +306,30 @@ object SkyScene {
         val k = t.coerceIn(0.0, 1.0)
         fun ch(shift: Int) = (((a shr shift) and 0xFF) + (((b shr shift) and 0xFF) - ((a shr shift) and 0xFF)) * k).toInt()
         return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+    }
+}
+
+/** A procedural skyline: deterministic, so the same place always looks the same. */
+object Landscape {
+    /** Altitude of the skyline in degrees at an azimuth. */
+    fun skyline(az: Double): Double {
+        val a = az * DEG
+        val hills = 1.1 + 0.9 * kotlin.math.sin(a * 2 + 0.7) + 0.55 * kotlin.math.sin(a * 5 + 2.1) + 0.3 * kotlin.math.sin(a * 11 + 0.4)
+        return hills.coerceAtLeast(0.25) + trees(az)
+    }
+
+    private fun trees(az: Double): Double {
+        // Clumps of trees where a slow noise is high; each tree a rounded bump about 1.5° wide.
+        val clump = kotlin.math.sin(az * DEG * 7 + 1.3) + 0.6 * kotlin.math.sin(az * DEG * 17 + 4.0)
+        if (clump < 0.55) return 0.0
+        val cell = kotlin.math.floor(az / 1.6)
+        val t = (az / 1.6 - cell) * 2 - 1
+        val height = 1.2 + 1.8 * hash(cell) * (clump - 0.55)
+        return height * kotlin.math.sqrt((1 - t * t).coerceAtLeast(0.0))
+    }
+
+    private fun hash(n: Double): Double {
+        val x = kotlin.math.sin(n * 127.1 + 311.7) * 43758.5453
+        return x - kotlin.math.floor(x)
     }
 }

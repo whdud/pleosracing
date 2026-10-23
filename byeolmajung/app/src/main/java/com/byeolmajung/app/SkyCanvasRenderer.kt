@@ -1,12 +1,16 @@
 package com.byeolmajung.app
 
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RadialGradient
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
+import com.byeolmajung.sky.BackgroundImage
 import com.byeolmajung.sky.BodyDisc
 import com.byeolmajung.sky.BodyKind
 import com.byeolmajung.sky.SkyFrame
@@ -22,13 +26,19 @@ class SkyCanvasRenderer {
     }
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
     private val ground = Path()
+    private val terrain = Path()
+    private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val dst = Rect()
+    private var backgroundBitmap: Bitmap? = null
     private val moon = Path()
     private val oval = RectF()
     private var skyShaderKey = 0L
     private var skyShader: Shader? = null
 
-    fun draw(canvas: Canvas, frame: SkyFrame) {
+    /** @param background the Milky Way / airglow / moonlight layer, drawn scaled up over the sky gradient. */
+    fun draw(canvas: Canvas, frame: SkyFrame, background: BackgroundImage?) {
         drawSky(canvas, frame)
+        background?.let { drawBackground(canvas, frame, it) }
 
         frame.lines.forEach {
             stroke.color = it.color
@@ -37,8 +47,11 @@ class SkyCanvasRenderer {
         }
         frame.stars.forEach {
             if (it.glow > 0f) {
-                fill.color = (it.color and 0x00FFFFFF) or (0x33 shl 24)
-                canvas.drawCircle(it.x, it.y, it.radius * 2.6f, fill)
+                val r = it.radius * (2.5f + 4f * it.glow)
+                val rgb = it.color and 0x00FFFFFF
+                fill.shader = RadialGradient(it.x, it.y, r, rgb or (((90 * it.glow).toInt() + 20) shl 24), rgb, Shader.TileMode.CLAMP)
+                canvas.drawCircle(it.x, it.y, r, fill)
+                fill.shader = null
             }
             fill.color = it.color
             canvas.drawCircle(it.x, it.y, it.radius, fill)
@@ -71,6 +84,17 @@ class SkyCanvasRenderer {
         fill.shader = null
     }
 
+    private fun drawBackground(canvas: Canvas, frame: SkyFrame, bg: BackgroundImage) {
+        var bmp = backgroundBitmap
+        if (bmp == null || bmp.width != bg.width || bmp.height != bg.height) {
+            bmp = Bitmap.createBitmap(bg.width, bg.height, Bitmap.Config.ARGB_8888)
+            backgroundBitmap = bmp
+        }
+        bmp.setPixels(bg.pixels, 0, bg.width, 0, 0, bg.width, bg.height)
+        dst.set(0, 0, frame.width, frame.height)
+        canvas.drawBitmap(bmp, null, dst, bitmapPaint)
+    }
+
     private fun drawGround(canvas: Canvas, frame: SkyFrame) {
         val h = frame.horizon
         ground.rewind()
@@ -78,17 +102,29 @@ class SkyCanvasRenderer {
         ground.fillType = if (frame.groundOutside) Path.FillType.INVERSE_WINDING else Path.FillType.WINDING
         fill.color = frame.groundColor
         canvas.drawPath(ground, fill)
-        stroke.color = h.color
-        stroke.strokeWidth = h.width
-        canvas.drawCircle(h.x, h.y, h.radius, stroke)
+
+        terrain.rewind()
+        frame.terrain.forEachIndexed { i, p -> if (i == 0) terrain.moveTo(p.x, p.y) else terrain.lineTo(p.x, p.y) }
+        terrain.close()
+        fill.color = frame.terrainColor
+        canvas.drawPath(terrain, fill)
+
+        if (h.width > 0f) {
+            stroke.color = h.color
+            stroke.strokeWidth = h.width
+            canvas.drawCircle(h.x, h.y, h.radius, stroke)
+        }
     }
 
     private fun drawBody(canvas: Canvas, b: BodyDisc) {
+        if (b.kind == BodyKind.MOON || b.kind == BodyKind.SUN) {
+            val r = b.radius * 7f
+            val rgb = b.color and 0x00FFFFFF
+            fill.shader = RadialGradient(b.x, b.y, r, intArrayOf(rgb or (120 shl 24), rgb or (40 shl 24), rgb), floatArrayOf(0f, 0.25f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawCircle(b.x, b.y, r, fill)
+            fill.shader = null
+        }
         if (b.kind != BodyKind.MOON) {
-            if (b.kind == BodyKind.SUN) {
-                fill.color = (b.color and 0x00FFFFFF) or (0x40 shl 24)
-                canvas.drawCircle(b.x, b.y, b.radius * 2.2f, fill)
-            }
             fill.color = b.color
             canvas.drawCircle(b.x, b.y, b.radius, fill)
             return

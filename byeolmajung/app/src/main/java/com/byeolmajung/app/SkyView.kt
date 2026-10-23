@@ -8,9 +8,11 @@ import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.animation.DecelerateInterpolator
+import com.byeolmajung.sky.BackgroundImage
 import com.byeolmajung.sky.Camera
 import com.byeolmajung.sky.Horizontal
 import com.byeolmajung.sky.SceneOptions
+import com.byeolmajung.sky.SkyBackground
 import com.byeolmajung.sky.SkyFrame
 import com.byeolmajung.sky.SkyObject
 import com.byeolmajung.sky.SkyScene
@@ -32,7 +34,7 @@ class SkyView(context: Context) : View(context) {
     var mode = ViewMode.WINDSHIELD
         set(value) {
             field = value
-            fieldOfView = if (value == ViewMode.SUNROOF) 180.0 else 100.0
+            fieldOfView = if (value == ViewMode.SUNROOF) 180.0 else 70.0
             invalidate()
         }
 
@@ -49,12 +51,21 @@ class SkyView(context: Context) : View(context) {
             invalidate()
         }
 
+    /** Milky Way, airglow and moonlight layer; null until the texture is loaded. */
+    var background: SkyBackground? = null
+        set(value) {
+            field = value
+            invalidate()
+        }
+
     var onSelect: ((SkyObject?) -> Unit)? = null
     var onViewChanged: (() -> Unit)? = null
 
     private var headingOffset = 0.0
     private var altitude = 25.0
-    private var fieldOfView = 100.0
+    private var fieldOfView = 70.0
+    private var backgroundImage: BackgroundImage? = null
+    private var backgroundKey: List<Any>? = null
     private var frame: SkyFrame? = null
     private var animator: ValueAnimator? = null
     private val renderer = SkyCanvasRenderer()
@@ -101,7 +112,18 @@ class SkyView(context: Context) : View(context) {
         val camera = Camera(mode, viewAzimuth, altitude, fieldOfView, width, height)
         val f = SkyScene.build(snap, camera, options.copy(density = density))
         frame = f
-        renderer.draw(canvas, f)
+        renderer.draw(canvas, f, backgroundFor(snap, camera))
+    }
+
+    /** The background layer is the most expensive part; recompute it only when the view or the sky changes. */
+    private fun backgroundFor(snap: SkySnapshot, camera: Camera): BackgroundImage? {
+        val bg = background ?: return null
+        val key = listOf(snap.epochMillis, snap.observer, mode, viewAzimuth, altitude, fieldOfView, width, height, options.skyQuality, options.nightRed)
+        if (key != backgroundKey) {
+            backgroundImage = bg.render(snap, camera, scaleDown = 5, skyQuality = options.skyQuality, nightRed = options.nightRed)
+            backgroundKey = key
+        }
+        return backgroundImage
     }
 
     private val gestures = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {

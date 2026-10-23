@@ -126,3 +126,20 @@ class StoryTest {
         Stories.all.forEach { story -> story.constellations.forEach { assertTrue(it in abbrs) } }
     }
 }
+
+class CameraTest {
+    @Test
+    fun unprojectInvertsProject() {
+        val cams = listOf(
+            Camera(ViewMode.WINDSHIELD, 135.0, 30.0, 70.0, 1920, 720),
+            Camera(ViewMode.SUNROOF, 200.0, 90.0, 180.0, 1000, 800),
+        )
+        val out = DoubleArray(3)
+        for (cam in cams) for ((alt, az) in listOf(40.0 to 140.0, 10.0 to 100.0, 75.0 to 250.0)) {
+            val p = cam.project(alt, az) ?: continue
+            assertTrue(cam.unproject(p.x, p.y, out))
+            val expected = Camera.direction(az, alt)
+            for (i in 0..2) assertEquals(expected[i], out[i], 1e-4)
+        }
+    }
+}

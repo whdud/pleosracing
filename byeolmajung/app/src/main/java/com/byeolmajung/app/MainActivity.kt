@@ -18,8 +18,10 @@ import android.widget.Toast
 import com.byeolmajung.sky.Describe
 import com.byeolmajung.sky.HorizonTransform
 import com.byeolmajung.sky.Observer
+import com.byeolmajung.sky.SkyBackground
 import com.byeolmajung.sky.SkyCatalog
 import com.byeolmajung.sky.SkyObject
+import com.byeolmajung.sky.SkyTexture
 import com.byeolmajung.sky.SkySnapshot
 import com.byeolmajung.sky.Stories
 import com.byeolmajung.sky.Story
@@ -34,14 +36,15 @@ import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
 
-    private data class Place(val name: String, val observer: Observer, val heading: Double)
+    /** @property skyQuality 0 for a dark site, 1 for a city sky. */
+    private data class Place(val name: String, val observer: Observer, val heading: Double, val skyQuality: Double)
 
     /** Used when the car's own position is not available (emulator without location, or SDK not yet enabled). */
     private val presets = listOf(
-        Place("서울", Observer(37.5665, 126.9780), 180.0),
-        Place("영양 국제밤하늘보호공원", Observer(36.656, 129.112), 180.0),
-        Place("화천 조경철천문대", Observer(38.153, 127.531), 180.0),
-        Place("제주", Observer(33.450, 126.570), 180.0),
+        Place("서울", Observer(37.5665, 126.9780), 180.0, 0.8),
+        Place("영양 국제밤하늘보호공원", Observer(36.656, 129.112), 180.0, 0.0),
+        Place("화천 조경철천문대", Observer(38.153, 127.531), 180.0, 0.1),
+        Place("제주", Observer(33.450, 126.570), 180.0, 0.4),
     )
 
     private val zone: ZoneId = ZoneId.systemDefault()
@@ -98,12 +101,19 @@ class MainActivity : Activity() {
                 assets.open("sky/stars.csv").bufferedReader(),
                 assets.open("sky/constellations.txt").bufferedReader(),
             )
+            val texture = android.graphics.BitmapFactory.decodeStream(assets.open("sky/milkyway.jpg")).let { bmp ->
+                val pixels = IntArray(bmp.width * bmp.height)
+                bmp.getPixels(pixels, 0, bmp.width, 0, 0, bmp.width, bmp.height)
+                SkyTexture(bmp.width, bmp.height, pixels).also { bmp.recycle() }
+            }
             runOnUiThread {
                 catalog = loaded
+                sky.background = SkyBackground(texture)
                 refreshSky()
             }
         }
         sky.carHeading = place.heading
+        sky.options = sky.options.copy(skyQuality = place.skyQuality)
     }
 
     override fun onStart() {
@@ -308,6 +318,7 @@ class MainActivity : Activity() {
                 place = p
                 carPosition = null
                 sky.carHeading = p.heading
+                sky.options = sky.options.copy(skyQuality = p.skyQuality)
                 closePanel()
                 refreshSky()
             })
@@ -369,6 +380,12 @@ class MainActivity : Activity() {
         bar.addView(modeButton)
         nightButton = button("관측 모드") { toggleNightMode() }
         bar.addView(nightButton)
+        lateinit var linesButton: Button
+        linesButton = button("별자리 선") {
+            sky.options = sky.options.copy(showConstellations = !sky.options.showConstellations)
+            linesButton.text = if (sky.options.showConstellations) "별자리 선 끄기" else "별자리 선"
+        }
+        bar.addView(linesButton)
         bar.addView(button("별자리 이야기") { showStoryList() })
         bar.addView(button("장소") { choosePlace() })
         root.addView(bar, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(16) })

@@ -5,6 +5,8 @@
 ## 주요 기능 (프로토타입 v0.1)
 
 - **지금 이 자리의 밤하늘**: 현재 시각과 위치로 별 8,920개(6.5등급까지), 88개 별자리, 달(위상 포함), 수성·금성·화성·목성·토성의 위치를 실시간으로 계산합니다
+- **실제 같은 하늘**: NASA 은하수 지도로 그린 은하수, 지평선의 대기 빛과 도시 불빛, 달빛에 밝아지는 하늘, 밝은 별의 빛번짐, 언덕과 나무 실루엣. 장소의 하늘 밝기(도시/시골)에 따라 보이는 별 수가 달라집니다
+- **별자리 선**: 기본은 꺼져 있어 자연스러운 하늘로 보이고, 버튼으로 켜거나 이야기를 고르면 해당 별자리만 강조됩니다
 - **차 방향 기준 보기**: FusedLocation SDK의 차량 heading으로 앞유리 너머 방향의 하늘을 보여줍니다
 - **선루프 보기**: 머리 위 하늘 전체(천정 시점). 선루프 가림막이 열리면 자동으로 전환하고, 이 모드를 켜면 가림막을 엽니다
 - **관측 모드**: 화면을 붉은색으로 바꾸고 실내등을 끄고 무드등을 최소 밝기로 낮춥니다. 끄면 원래대로 돌아갑니다
@@ -69,6 +71,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 |---|---|---|
 | 별 위치·밝기·색·거리 (`stars.csv`) | [HYG Database v4.4](https://codeberg.org/astronexus/hyg) (astronexus) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
 | 별자리 선과 이름 (`constellations.txt`) | [d3-celestial](https://github.com/ofrohn/d3-celestial) (Olaf Frohn) | BSD 3-Clause |
+| 은하수 배경 (`milkyway.jpg`) | [NASA SVS Deep Star Maps 2020](https://svs.gsfc.nasa.gov/4851) `milkyway_2020_4k.exr`를 2048×1024로 줄이고 톤 조정. Credit: NASA/Goddard Space Flight Center Scientific Visualization Studio. Gaia DR2: ESA/Gaia/DPAC | NASA 공개 자료 (출처 표기) |
 | 행성 궤도 요소 | JPL "Keplerian Elements for Approximate Positions of the Major Planets" (E. M. Standish) | 공개 자료 |
 
 `stars.csv`는 HYG 데이터베이스를 가공한 것이므로 CC BY-SA 4.0을 따릅니다. 별자리 이야기와 앱 코드, 아이콘은 직접 작성했습니다.
@@ -76,4 +79,5 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 데이터를 다시 만들려면 위 출처에서 `hyg_v44.csv`, `constellations.lines.json`, `constellations.json`을 받은 뒤 실행합니다.
 ```bash
 python3 tools/prepare_sky_data.py <받은 폴더> app/src/main/assets/sky
+python3 tools/prepare_milkyway.py <받은 폴더>/milkyway_2020_4k.exr app/src/main/assets/sky/milkyway.jpg   # ffmpeg, numpy, Pillow 필요
 ```
