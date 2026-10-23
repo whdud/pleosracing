@@ -238,8 +238,8 @@ class MainActivity : Activity() {
         val d = Describe.of(obj, cat, position)
         activeStory = null
         showPanel(d.title, d.subtitle, d.body)
-        d.story?.let { story -> panelActions.addView(button("'${story.title}' 이야기 듣기") { startStory(story) }) }
-        panelActions.addView(button("닫기") { onSelect(null) })
+        d.story?.let { story -> panelActions.addView(panelButton("'${story.title}' 이야기 듣기") { startStory(story) }) }
+        panelActions.addView(panelButton("닫기") { onSelect(null) })
     }
 
     private fun positionOf(obj: SkyObject) = sky.snapshot?.let { snap ->
@@ -253,8 +253,8 @@ class MainActivity : Activity() {
     private fun showStoryList() {
         showPanel("별자리 이야기", "이야기를 고르면 하늘에서 그 별자리를 찾아 드려요", "")
         panelBody.visibility = View.GONE
-        Stories.all.forEach { story -> panelActions.addView(button("${story.title}  (${story.season})") { startStory(story) }) }
-        panelActions.addView(button("닫기") { closePanel() })
+        Stories.all.forEach { story -> panelActions.addView(panelButton("${story.title}  (${story.season})") { startStory(story) }) }
+        panelActions.addView(panelButton("닫기") { closePanel() })
     }
 
     private fun startStory(story: Story) {
@@ -282,14 +282,14 @@ class MainActivity : Activity() {
         val story = activeStory ?: return
         showPanel(story.title, "${story.season} 별자리 이야기  ·  ${storyPage + 1} / ${story.pages.size}", story.pages[storyPage])
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        if (storyPage > 0) row.addView(button("이전") { storyPage--; showStoryPage() }, weight())
+        if (storyPage > 0) row.addView(panelButton("이전") { storyPage--; showStoryPage() }, weight())
         if (storyPage < story.pages.lastIndex) {
-            row.addView(button("다음") { storyPage++; showStoryPage() }, weight())
+            row.addView(panelButton("다음") { storyPage++; showStoryPage() }, weight())
         } else {
-            row.addView(button("다른 이야기") { showStoryList() }, weight())
+            row.addView(panelButton("다른 이야기") { showStoryList() }, weight())
         }
         panelActions.addView(row)
-        panelActions.addView(button("닫기") { closePanel() })
+        panelActions.addView(panelButton("닫기") { closePanel() })
     }
 
     private fun showPanel(title: String, subtitle: String, body: String) {
@@ -314,7 +314,7 @@ class MainActivity : Activity() {
         showPanel("장소 선택", if (location.isAvailable) "차 위치를 받고 있어요" else "차 위치를 받을 수 없어서 장소를 골라 주세요", "")
         panelBody.visibility = View.GONE
         presets.forEach { p ->
-            panelActions.addView(button(p.name) {
+            panelActions.addView(panelButton(p.name) {
                 place = p
                 carPosition = null
                 sky.carHeading = p.heading
@@ -323,7 +323,7 @@ class MainActivity : Activity() {
                 refreshSky()
             })
         }
-        panelActions.addView(button("닫기") { closePanel() })
+        panelActions.addView(panelButton("닫기") { closePanel() })
     }
 
     // --- Layout ---
@@ -434,7 +434,12 @@ class MainActivity : Activity() {
         return root
     }
 
-    private fun button(label: String, onClick: () -> Unit) = Button(this).apply {
+    /** A full-width button inside the side panel. Not kept in [buttons]: the panel is rebuilt each time. */
+    private fun panelButton(label: String, onClick: () -> Unit) = button(label, register = false, onClick).apply {
+        layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(4), 0, dp(4)) }
+    }
+
+    private fun button(label: String, register: Boolean = true, onClick: () -> Unit) = Button(this).apply {
         text = label
         textSize = 18f
         isAllCaps = false
@@ -445,7 +450,7 @@ class MainActivity : Activity() {
         background = rounded(BUTTON)
         setOnClickListener { onClick() }
         layoutParams = LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(6), dp(4), dp(6), dp(4)) }
-        buttons += this
+        if (register) buttons += this
         restyle(this)
     }
 
@@ -454,7 +459,10 @@ class MainActivity : Activity() {
     /** Night mode turns all UI text red so it does not spoil dark adaptation. */
     private fun restyle(only: Button? = null) {
         val color = if (nightMode) NIGHT_TEXT else TEXT
-        (only?.let { listOf(it) } ?: buttons).forEach { it.setTextColor(color) }
+        (only?.let { listOf(it) } ?: buttons).forEach {
+            it.setTextColor(color)
+            it.background = rounded(if (nightMode) NIGHT_BUTTON else BUTTON)
+        }
         if (only != null || !::panelBody.isInitialized) return
         status.setTextColor(color)
         panelBody.setTextColor(color)
@@ -476,5 +484,6 @@ class MainActivity : Activity() {
         private val ACCENT = 0xFF8FC2FF.toInt()
         private val BUTTON = 0xFF1B2640.toInt()
         private val NIGHT_TEXT = 0xFFD0453A.toInt()
+        private val NIGHT_BUTTON = 0xFF2A0C0B.toInt()
     }
 }

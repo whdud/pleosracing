@@ -20,7 +20,7 @@ import com.byeolmajung.sky.StarDot
 import kotlin.math.abs
 
 /** Paints [SkyFrame] primitives on an Android canvas. Mirrors the JVM preview renderer in the sky module's tests. */
-class SkyCanvasRenderer(private val density: Float) {
+class SkyCanvasRenderer {
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -145,32 +145,6 @@ class SkyCanvasRenderer(private val density: Float) {
             stroke.color = h.color
             stroke.strokeWidth = h.width
             canvas.drawCircle(h.x, h.y, h.radius, stroke)
-        }
-        frame.hood?.let { drawHood(canvas, frame, it) }
-    }
-
-    private val hood = Path()
-    private var hoodShaderKey = 0f
-    private var hoodShader: Shader? = null
-
-    private fun drawHood(canvas: Canvas, frame: SkyFrame, outline: List<com.byeolmajung.sky.ScreenPoint>) {
-        if (outline.size < 3) return
-        hood.rewind()
-        outline.forEachIndexed { i, p -> if (i == 0) hood.moveTo(p.x, p.y) else hood.lineTo(p.x, p.y) }
-        hood.close()
-        val top = outline.minOf { it.y }
-        if (top != hoodShaderKey || hoodShader == null) {
-            hoodShader = LinearGradient(0f, top, 0f, frame.height.toFloat(), frame.hoodTop, frame.hoodBottom, Shader.TileMode.CLAMP)
-            hoodShaderKey = top
-        }
-        fill.shader = hoodShader
-        canvas.drawPath(hood, fill)
-        fill.shader = null
-        frame.hoodLines.forEachIndexed { i, line ->
-            // The rim catches the sky; the creases are fainter.
-            stroke.color = if (i == 0) frame.hoodRimColor else (frame.hoodRimColor and 0x00FFFFFF) or (((frame.hoodRimColor ushr 24) / 3) shl 24)
-            stroke.strokeWidth = (if (i == 0) 2f else 1.5f) * density
-            line.zipWithNext { p, q -> canvas.drawLine(p.x, p.y, q.x, q.y, stroke) }
         }
     }
 

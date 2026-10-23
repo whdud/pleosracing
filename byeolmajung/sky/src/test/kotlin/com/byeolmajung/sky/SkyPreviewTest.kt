@@ -53,23 +53,22 @@ class SkyPreviewTest {
         val seoul = Observer(37.5665, 126.9780)
 
         render("summer_south_milkyway", SkySnapshot.compute(catalog, newMoonSummer, yeongyang),
-            Camera(ViewMode.WINDSHIELD, 175.0, 12.0, 100.0, 1920, 720), SceneOptions())
+            Camera(ViewMode.WINDSHIELD, 175.0, 15.0, 100.0, 1920, 720), SceneOptions())
         render("summer_sunroof", SkySnapshot.compute(catalog, summer, yeongyang),
             Camera(ViewMode.SUNROOF, 0.0, 90.0, 180.0, 1920, 720), SceneOptions(highlightConstellations = setOf("Lyr", "Aql")))
         render("winter_south_windshield", SkySnapshot.compute(catalog, winter, yeongyang),
-            Camera(ViewMode.WINDSHIELD, 180.0, 12.0, 100.0, 1920, 720), SceneOptions(highlightConstellations = setOf("Ori")))
+            Camera(ViewMode.WINDSHIELD, 180.0, 15.0, 100.0, 1920, 720), SceneOptions(highlightConstellations = setOf("Ori")))
         render("tonight_south_lines", SkySnapshot.compute(catalog, tonight, yeongyang),
-            Camera(ViewMode.WINDSHIELD, 180.0, 12.0, 100.0, 1920, 720), SceneOptions(showConstellations = true))
+            Camera(ViewMode.WINDSHIELD, 180.0, 15.0, 100.0, 1920, 720), SceneOptions(showConstellations = true))
         render("tonight_south_nightred", SkySnapshot.compute(catalog, tonight, yeongyang),
-            Camera(ViewMode.WINDSHIELD, 180.0, 12.0, 100.0, 1920, 720), SceneOptions(nightRed = true))
+            Camera(ViewMode.WINDSHIELD, 180.0, 15.0, 100.0, 1920, 720), SceneOptions(nightRed = true))
         render("winter_moon_west", SkySnapshot.compute(catalog, winter, yeongyang),
-            Camera(ViewMode.WINDSHIELD, 250.0, 12.0, 100.0, 1920, 720), SceneOptions())
+            Camera(ViewMode.WINDSHIELD, 250.0, 15.0, 100.0, 1920, 720), SceneOptions())
         render("tonight_seoul_city", SkySnapshot.compute(catalog, tonight, seoul),
-            Camera(ViewMode.WINDSHIELD, 180.0, 12.0, 100.0, 1920, 720), SceneOptions(skyQuality = 0.8))
+            Camera(ViewMode.WINDSHIELD, 180.0, 15.0, 100.0, 1920, 720), SceneOptions(skyQuality = 0.8))
     }
 
-    private fun render(name: String, snapshot: SkySnapshot, camera: Camera, options0: SceneOptions) {
-        val options = options0.copy(carHeading = camera.azimuth)
+    private fun render(name: String, snapshot: SkySnapshot, camera: Camera, options: SceneOptions) {
         val frame = SkyScene.build(snapshot, camera, options)
         val img = BufferedImage(frame.width, frame.height, BufferedImage.TYPE_INT_ARGB)
         val g = img.createGraphics()
@@ -134,24 +133,12 @@ class SkyPreviewTest {
         g.fill(groundArea)
         g.color = Color(frame.terrainColor, true)
         val terrain = java.awt.geom.Path2D.Float()
-        frame.terrain.forEachIndexed { i, p -> if (i == 0) terrain.moveTo(p.x, p.y) else terrain.lineTo(p.x, p.y) }
-        terrain.closePath()
-        g.fill(terrain)
-
-        frame.hood?.let { pts ->
-            val path = java.awt.geom.Path2D.Float()
-            pts.forEachIndexed { i, p -> if (i == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y) }
-            path.closePath()
-            val top = pts.minOf { it.y }
-            g.paint = GradientPaint(0f, top, Color(frame.hoodTop, true), 0f, frame.height.toFloat(), Color(frame.hoodBottom, true))
-            g.fill(path)
-            frame.hoodLines.forEachIndexed { i, line ->
-                val c = Color(frame.hoodRimColor, true)
-                g.color = if (i == 0) c else Color(c.red, c.green, c.blue, c.alpha / 3)
-                g.stroke = BasicStroke(if (i == 0) 2f else 1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-                line.zipWithNext { p, q -> g.drawLine(p.x.toInt(), p.y.toInt(), q.x.toInt(), q.y.toInt()) }
-            }
+        if (frame.terrain.isNotEmpty()) {
+            frame.terrain.forEachIndexed { i, p -> if (i == 0) terrain.moveTo(p.x, p.y) else terrain.lineTo(p.x, p.y) }
+            terrain.closePath()
+            g.fill(terrain)
         }
+
         frame.rings.forEach {
             g.color = Color(it.color, true)
             g.stroke = BasicStroke(it.width)

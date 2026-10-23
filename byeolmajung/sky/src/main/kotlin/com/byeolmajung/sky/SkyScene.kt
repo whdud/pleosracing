@@ -55,13 +55,6 @@ data class SkyFrame(
     /** Distant hills and trees standing on the horizon: a closed polygon painted in [terrainColor]. */
     val terrain: List<ScreenPoint>,
     val terrainColor: Int,
-    /** Windshield mode: the car's hood in front of the driver, or null. Fill with a vertical gradient [hoodTop] → [hoodBottom]. */
-    val hood: List<ScreenPoint>?,
-    /** Highlights on the hood: the sky reflected along its front edge and the two crease lines. */
-    val hoodLines: List<List<ScreenPoint>>,
-    val hoodTop: Int,
-    val hoodBottom: Int,
-    val hoodRimColor: Int,
     val lines: List<LineSeg>,
     val stars: List<StarDot>,
     val bodies: List<BodyDisc>,
@@ -89,8 +82,6 @@ data class SceneOptions(
     val selected: SkyObject? = null,
     /** Multiplier for star and label sizes, e.g. display density. */
     val density: Float = 1f,
-    /** Direction the car faces, degrees from north; the hood is drawn toward it. Null hides the hood. */
-    val carHeading: Double? = null,
 )
 
 /** Turns a [SkySnapshot] into draw primitives through a [Camera]. */
@@ -105,9 +96,6 @@ object SkyScene {
     private const val SELECTION = 0xFF7FE0FF.toInt()
     private const val GROUND = 0xFF06080B.toInt()
     private const val TERRAIN = GROUND
-    private const val HOOD_TOP = 0xFF222B3A.toInt()
-    private const val HOOD_BOTTOM = 0xFF07090C.toInt()
-    private const val HOOD_RIM = 0x996F86B0.toInt()
     private const val HORIZON_LINE = 0xFF2C3A52.toInt()
 
     private val CARDINALS = listOf("북" to 0.0, "북동" to 45.0, "동" to 90.0, "남동" to 135.0, "남" to 180.0, "남서" to 225.0, "서" to 270.0, "북서" to 315.0)
@@ -201,7 +189,6 @@ object SkyScene {
         // Horizon, terrain, ground and compass directions.
         val horizon = horizonCircle(camera, tint(HORIZON_LINE), 0f)
         val terrain = terrainPolygon(camera)
-        val hood = options.carHeading?.takeIf { camera.mode == ViewMode.WINDSHIELD }?.let { Hood.build(camera, it) }
         val cardinalAlt = if (camera.mode == ViewMode.SUNROOF) 4.0 else 0.0
         val cardinalOffset = if (camera.mode == ViewMode.SUNROOF) 0f else 30f * d
         CARDINALS.forEach { (text, az) ->
@@ -220,11 +207,6 @@ object SkyScene {
             groundOutside = camera.mode == ViewMode.SUNROOF || camera.altitude > 0,
             terrain = terrain,
             terrainColor = tint(TERRAIN),
-            hood = hood?.first,
-            hoodLines = hood?.second.orEmpty(),
-            hoodTop = tint(HOOD_TOP),
-            hoodBottom = tint(HOOD_BOTTOM),
-            hoodRimColor = tint(HOOD_RIM),
             lines = lines,
             stars = stars,
             bodies = bodies,
@@ -245,10 +227,12 @@ object SkyScene {
 
     /**
      * A band from just below the horizon up to the skyline: rolling hills with clumps of trees.
-     * In windshield mode only the part in front is built (points behind the viewer cannot be projected).
+     * Only the part in front is built (points behind the viewer cannot be projected).
      */
     private fun terrainPolygon(camera: Camera): List<ScreenPoint> {
-        val (from, to) = if (camera.mode == ViewMode.SUNROOF) 0.0 to 360.0 else camera.azimuth - 150 to camera.azimuth + 150
+        // Looking up through the sunroof the skyline is barely visible and only makes the edge look ragged.
+        if (camera.mode == ViewMode.SUNROOF) return emptyList()
+        val (from, to) = camera.azimuth - 150 to camera.azimuth + 150
         val top = mutableListOf<ScreenPoint>()
         val bottom = mutableListOf<ScreenPoint>()
         var az = from
@@ -375,48 +359,5 @@ object Landscape {
     private fun hash(n: Double): Double {
         val x = kotlin.math.sin(n * 127.1 + 311.7) * 43758.5453
         return x - kotlin.math.floor(x)
-    }
-}
-
-/**
- * The car's hood as seen from the driver's seat, fixed to the car: it turns with the car heading
- * and slides out of view when the user looks up or to the side.
- *
- * Korean cars are left-hand drive, so the hood's centerline sits a little right of straight ahead.
- */
-object Hood {
-    private const val CENTER = 9.0 // degrees right of the driver's straight-ahead
-    private const val HALF_WIDTH = 34.0
-
-    /** Altitude of the hood's front edge (negative, below the horizon) at an angle from the hood centerline, |rel| ≤ [HALF_WIDTH]. */
-    fun edge(rel: Double): Double {
-        val t = (rel / HALF_WIDTH).coerceIn(-1.0, 1.0)
-        return -2.6 - 1.4 * t * t - 2.4 * t * t * t * t
-    }
-
-    /**
-     * The front edge is far away, so it looks narrow; the fenders come toward the driver and spread out
-     * to the bottom corners. Built as: front edge left→right, right fender down, back along the bottom, left fender up.
-     */
-    fun build(camera: Camera, carHeading: Double): Pair<List<ScreenPoint>, List<List<ScreenPoint>>> {
-        val center = carHeading + CENTER
-        fun fender(side: Double, f: Double) = (side * (HALF_WIDTH + 38 * f)) to (edge(side * HALF_WIDTH) - 34 * f)
-
-        val front = (-HALF_WIDTH.toInt()..HALF_WIDTH.toInt()).mapNotNull { r -> camera.project(edge(r.toDouble()), center + r) }
-        val right = (1..10).mapNotNull { i -> fender(1.0, i / 10.0).let { (r, a) -> camera.project(a, center + r) } }
-        val bottom = (-8..8).reversed().mapNotNull { i -> camera.project(-62.0, center + i * 12.0) }
-        val left = (10 downTo 1).mapNotNull { i -> fender(-1.0, i / 10.0).let { (r, a) -> camera.project(a, center + r) } }
-        val outline = front + right + bottom + left
-
-        val rim = (-(HALF_WIDTH * 0.9).toInt()..(HALF_WIDTH * 0.9).toInt()).mapNotNull { r -> camera.project(edge(r.toDouble()) - 0.2, center + r) }
-        // Two creases running from the front edge toward the windshield, spreading with perspective.
-        val creases = listOf(-1.0, 1.0).map { side ->
-            (0..12).mapNotNull { i ->
-                val f = i / 12.0
-                val r = side * (12 + 20 * f)
-                camera.project(edge(side * 12) - 0.3 - f * 30, center + r)
-            }
-        }
-        return outline to listOf(rim) + creases
     }
 }
