@@ -91,8 +91,13 @@ class CarFeatures(context: Context, private val onSunroofBlindChanged: (open: Bo
     }
 
     fun start() {
-        runCatching { vehicle.initialize() }.onFailure { Log.w(TAG, "Vehicle SDK init failed", it) }
-        val window = runCatching { vehicle.getWindow() }.getOrNull() ?: return
+        // On cars or emulators without the Pleos Vehicle Service, every call below may fail; none of it is essential.
+        runCatching { startSunroofWatch() }.onFailure { Log.w(TAG, "Vehicle features unavailable", it) }
+    }
+
+    private fun startSunroofWatch() {
+        vehicle.initialize()
+        val window = vehicle.getWindow()
         window.checkWindowBlindPositionCapabilities(
             onComplete = { config, bounds ->
                 val b = bounds[roof]
@@ -121,14 +126,20 @@ class CarFeatures(context: Context, private val onSunroofBlindChanged: (open: Bo
     // Assumption to verify: FORWARD opens the blind (positive direction, like AAOS WINDOW_MOVE).
     fun openSunroofBlind(onResult: (Boolean) -> Unit) {
         if (!hasSunroofBlind) return onResult(false)
-        vehicle.getWindow().moveWindowBlind(roof, MoveControl.FORWARD, { _, _ -> onResult(true) }, {
-            Log.w(TAG, "open blind failed", it)
-            onResult(false)
-        })
+        runCatching {
+            vehicle.getWindow().moveWindowBlind(roof, MoveControl.FORWARD, { _, _ -> onResult(true) }, {
+                Log.w(TAG, "open blind failed", it)
+                onResult(false)
+            })
+        }.onFailure { onResult(false) }
     }
 
     /** Turns the cabin light off and the ambient light to its minimum, remembering the previous state. */
     fun dimLights(onResult: (Boolean) -> Unit) {
+        runCatching { dimLightsUnsafe(onResult) }.onFailure { onResult(false) }
+    }
+
+    private fun dimLightsUnsafe(onResult: (Boolean) -> Unit) {
         val light = runCatching { vehicle.getLight() }.getOrNull() ?: return onResult(false)
         var ok = false
         light.getCabinLightSwitch({ current ->
@@ -147,9 +158,11 @@ class CarFeatures(context: Context, private val onSunroofBlindChanged: (open: Bo
     }
 
     fun restoreLights() {
-        val light = runCatching { vehicle.getLight() }.getOrNull() ?: return
-        savedCabin?.let { light.setCabinLightSwitch(it, {}, {}) }
-        savedAmbient?.let { light.setAmbientLightBrightness(ambientSeats, it, { _, _ -> }, {}) }
+        runCatching {
+            val light = vehicle.getLight()
+            savedCabin?.let { light.setCabinLightSwitch(it, {}, {}) }
+            savedAmbient?.let { light.setAmbientLightBrightness(ambientSeats, it, { _, _ -> }, {}) }
+        }
         savedCabin = null
         savedAmbient = null
     }

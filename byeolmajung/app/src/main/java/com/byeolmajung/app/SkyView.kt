@@ -58,6 +58,13 @@ class SkyView(context: Context) : View(context) {
             invalidate()
         }
 
+    /** Draw the car's hood at the bottom of the windshield view. */
+    var showHood = true
+        set(value) {
+            field = value
+            invalidate()
+        }
+
     var onSelect: ((SkyObject?) -> Unit)? = null
     var onViewChanged: (() -> Unit)? = null
 
@@ -68,8 +75,8 @@ class SkyView(context: Context) : View(context) {
     private var backgroundKey: List<Any>? = null
     private var frame: SkyFrame? = null
     private var animator: ValueAnimator? = null
-    private val renderer = SkyCanvasRenderer()
     private val density = resources.displayMetrics.density
+    private val renderer = SkyCanvasRenderer(density)
 
     /** The azimuth currently in the middle of the view (windshield) or at the top (sunroof). */
     val viewAzimuth: Double get() = ((carHeading + headingOffset) % 360 + 360) % 360
@@ -110,7 +117,7 @@ class SkyView(context: Context) : View(context) {
         val snap = snapshot ?: return
         if (width == 0 || height == 0) return
         val camera = Camera(mode, viewAzimuth, altitude, fieldOfView, width, height)
-        val f = SkyScene.build(snap, camera, options.copy(density = density))
+        val f = SkyScene.build(snap, camera, options.copy(density = density, carHeading = if (showHood) carHeading else null))
         frame = f
         renderer.draw(canvas, f, backgroundFor(snap, camera))
     }
@@ -174,7 +181,7 @@ class SkyView(context: Context) : View(context) {
         /** Horizontal field of view through the windshield, close to Stellarium's default framing on a wide screen. */
         const val DEFAULT_FOV = 100.0
 
-        /** Keeps the horizon near the bottom of the screen, as when looking out of the windshield. */
-        const val DEFAULT_ALTITUDE = 15.0
+        /** Keeps the horizon low on the screen with the car's hood just below it, as when looking out of the windshield. */
+        const val DEFAULT_ALTITUDE = 12.0
     }
 }
