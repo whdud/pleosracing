@@ -9,7 +9,7 @@
 - **별자리 선**: 기본은 꺼져 있어 자연스러운 하늘로 보이고, 버튼으로 켜거나 이야기를 고르면 해당 별자리만 강조됩니다
 - **차 방향 기준 보기**: FusedLocation SDK의 차량 heading으로 앞유리 너머 방향의 하늘을 보여줍니다
 - **선루프 보기**: 머리 위 하늘 전체(천정 시점). 선루프 가림막이 열리면 자동으로 전환하고, 이 모드를 켜면 가림막을 엽니다
-- **관측 모드**: 화면을 붉은색으로 바꾸고 실내등을 끄고 무드등을 최소 밝기로 낮춥니다. 끄면 원래대로 돌아갑니다
+- **관측 모드**: 실내등, 독서등, 무드등을 모두 꺼서 눈이 어둠에 익게 돕습니다. 끄면 각 조명을 원래 상태로 되돌립니다
 - **별자리 이야기 4편**: 견우와 직녀, 북두칠성이 된 일곱 형제, 오리온과 전갈, 페르세우스와 안드로메다 공주. 고르면 해당 별자리를 강조해서 찾아주고, 지금 안 보이면 잘 보이는 날짜와 시간으로 이동합니다
 - **별·행성·달 정보**: 누르면 이름, 밝기, 거리("이 빛은 25년 전에 출발했어요"), 색과 온도를 쉬운 말로 설명합니다
 - **시간 이동**: ±1시간, 빠르게 돌려보기, 낮에는 "오늘 밤 9시 하늘 보기"
@@ -28,7 +28,7 @@
 | 기능 | API | 권한 |
 |---|---|---|
 | 차량 위치·방향 | FusedLocation SDK 1.1.3 `registerFusedLocationCallback()` (위도, 경도, heading) | `pleos.car.permission.FUSED_LOCATION` |
-| 관측 모드 조명 | Vehicle SDK 2.3.2 Light `setCabinLightSwitch()`, `setAmbientLightBrightness()` | `pleos.car.permission.CAR_LIGHTS`, `CONTROL_CAR_LIGHTS` |
+| 관측 모드 조명 | Vehicle SDK 2.3.2 Light `setCabinLightSwitch()`, `setReadingLightSwitch()`, `setAmbientLightSwitch()` (좌석별) | `pleos.car.permission.CAR_LIGHTS`, `CONTROL_CAR_LIGHTS` |
 | 선루프 가림막 | Vehicle SDK 2.3.2 Window `ROOF_TOP_1` `registerWindowBlindPosition()`, `moveWindowBlind()` | `pleos.car.permission.CAR_WINDOWS`, `CONTROL_CAR_WINDOWS` |
 | 주행 중 제한 | AAOS `CarUxRestrictionsManager` | - |
 
@@ -67,7 +67,7 @@ Pleos 이미지를 받기 전에도 구글의 일반 Android Automotive 에뮬�
 ### 에뮬레이터에서 확인할 것
 - **Virtual Console → Motion → Gear Selection**을 D로 바꾸면 주행 제한 화면이 뜨고, P로 돌리면 보던 하늘로 돌아오는지
 - 차량 위치가 오는지, 안 오면 "장소" 메뉴로 바꿔서 확인
-- "관측 모드"를 켤 때 Virtual Console의 Cabin Lights, Ambient Brightness가 바뀌는지
+- "관측 모드"를 켤 때 Virtual Console의 Cabin Lights, Reading Lights가 꺼지고, 끄면 원래대로 돌아오는지
 
 ### 테스트와 미리보기 (에뮬레이터 없이)
 ```bash
@@ -80,7 +80,7 @@ Pleos 이미지를 받기 전에도 구글의 일반 Android Automotive 에뮬�
 ## 확인이 필요한 가정
 
 - **선루프 가림막 값의 방향**: 문서에 열림/닫힘 방향이 나와 있지 않아서, AAOS `WINDOW_POS`처럼 최댓값이 "완전히 열림", `MoveControl.FORWARD`가 "여는 방향"이라고 가정했습니다 (`VehicleServices.kt`). 에뮬레이터나 실차에서 확인 후 수정합니다.
-- **조명·창문 제어 권한**: Pleos Playground에서 차량 제어 SDK가 "준비 중"으로 표시되어 있어, 현재는 권한이 거부될 수 있습니다. 거부되면 화면만 붉게 바뀝니다.
+- **조명·창문 제어 권한**: Pleos Playground에서 차량 제어 SDK가 "준비 중"으로 표시되어 있어, 현재는 권한이 거부될 수 있습니다. 거부되면 "이 차에서는 조명을 끌 수 없어요"라고 안내합니다.
 
 ## 데이터 출처와 라이선스
 

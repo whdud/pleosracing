@@ -7,7 +7,7 @@ import ai.pleos.playground.vehicle.Vehicle
 import ai.pleos.playground.vehicle.api.model.area.SeatArea
 import ai.pleos.playground.vehicle.api.model.area.WindowArea
 import ai.pleos.playground.vehicle.api.model.capability.AccessType
-import ai.pleos.playground.vehicle.constant.area.SeatValue
+import ai.pleos.playground.vehicle.api.model.capability.CapabilityConfig
 import ai.pleos.playground.vehicle.constant.area.WindowValue
 import ai.pleos.playground.vehicle.constant.control.LightSwitch
 import ai.pleos.playground.vehicle.constant.control.MoveControl
@@ -64,17 +64,18 @@ class CarLocation(context: Context, private val onUpdate: (Observer, heading: Do
 }
 
 /**
- * Car features used in stargazing mode: cabin/ambient lights and the sunroof blind.
+ * Car features used in stargazing mode: the car's lights and the sunroof blind.
  * Every call checks the capability first; on cars without the feature (or without permission) it quietly does nothing.
  */
 class CarFeatures(context: Context, private val onSunroofBlindChanged: (open: Boolean) -> Unit) {
 
     private val vehicle = Vehicle(context)
     private val roof = WindowArea(WindowValue.ROOF_TOP_1)
-    private val ambientSeats = SeatArea(SeatValue.ROW_1_LEFT)
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
     private var savedCabin: LightSwitch? = null
-    private var savedAmbient: Int? = null
+    private val savedReading = HashMap<SeatArea, LightSwitch>()
+    private val savedAmbient = HashMap<SeatArea, LightSwitch>()
     private var blindRange: IntRange? = null
 
     var hasSunroofBlind = false
@@ -134,37 +135,50 @@ class CarFeatures(context: Context, private val onSunroofBlindChanged: (open: Bo
         }.onFailure { onResult(false) }
     }
 
-    /** Turns the cabin light off and the ambient light to its minimum, remembering the previous state. */
-    fun dimLights(onResult: (Boolean) -> Unit) {
-        runCatching { dimLightsUnsafe(onResult) }.onFailure { onResult(false) }
-    }
-
-    private fun dimLightsUnsafe(onResult: (Boolean) -> Unit) {
-        val light = runCatching { vehicle.getLight() }.getOrNull() ?: return onResult(false)
-        var ok = false
-        light.getCabinLightSwitch({ current ->
-            savedCabin = current
-            light.setCabinLightSwitch(LightSwitch.OFF, { ok = true }, { Log.i(TAG, "cabin light: ${it.message}") })
-        }, { Log.i(TAG, "cabin light read: ${it.message}") })
-        light.checkAmbientLightBrightnessCapabilities({ config, bounds ->
-            val min = bounds[ambientSeats]?.minValue
-            if (config.accessType == AccessType.READ_WRITE && min != null) {
-                light.getAmbientLightBrightness(ambientSeats, { savedAmbient = it }, {})
-                light.setAmbientLightBrightness(ambientSeats, min, { _, _ -> ok = true; onResult(true) }, { onResult(ok) })
-            } else {
-                onResult(ok)
-            }
-        }, { onResult(ok) })
+    /**
+     * Stargazing mode: switches every light in the car off (cabin, reading and ambient lights), remembering
+     * each one's previous state. [onResult] is called once, with true as soon as any light was switched off.
+     */
+    fun turnOffAllLights(onResult: (Boolean) -> Unit) {
+        var reported = false
+        val report = { ok: Boolean -> if (!reported && ok) { reported = true; onResult(true) } }
+        runCatching {
+            val light = vehicle.getLight()
+            light.getCabinLightSwitch({ current ->
+                savedCabin = current
+                light.setCabinLightSwitch(LightSwitch.OFF, { report(true) }, { Log.i(TAG, "cabin light: ${it.message}") })
+            }, { Log.i(TAG, "cabin light read: ${it.message}") })
+            light.checkReadingLightSwitchCapabilities({ _: CapabilityConfig, areas: Map<SeatArea, List<LightSwitch>> ->
+                areas.keys.forEach { seat ->
+                    light.getReadingLightSwitch(seat, { current ->
+                        current?.let { savedReading[seat] = it }
+                        light.setReadingLightSwitch(seat, LightSwitch.OFF, { report(true) }, {})
+                    }, {})
+                }
+            }, { Log.i(TAG, "reading lights: ${it.message}") })
+            light.checkAmbientLightSwitchCapabilities({ _, areas ->
+                areas.keys.forEach { seat ->
+                    light.getAmbientLightSwitch(seat, { current ->
+                        current?.let { savedAmbient[seat] = it }
+                        light.setAmbientLightSwitch(seat, LightSwitch.OFF, { _, _ -> report(true) }, {})
+                    }, {})
+                }
+            }, { Log.i(TAG, "ambient lights: ${it.message}") })
+        }.onFailure { Log.w(TAG, "lights unavailable", it) }
+        // Without a reply within 2 s (no Light API, or no permission), tell the caller nothing changed.
+        handler.postDelayed({ if (!reported) { reported = true; onResult(false) } }, 2000)
     }
 
     fun restoreLights() {
         runCatching {
             val light = vehicle.getLight()
             savedCabin?.let { light.setCabinLightSwitch(it, {}, {}) }
-            savedAmbient?.let { light.setAmbientLightBrightness(ambientSeats, it, { _, _ -> }, {}) }
+            savedReading.forEach { (seat, value) -> light.setReadingLightSwitch(seat, value, {}, {}) }
+            savedAmbient.forEach { (seat, value) -> light.setAmbientLightSwitch(seat, value, { _, _ -> }, {}) }
         }
         savedCabin = null
-        savedAmbient = null
+        savedReading.clear()
+        savedAmbient.clear()
     }
 }
 

@@ -73,7 +73,6 @@ class MainActivity : Activity() {
     private lateinit var modeButton: Button
     private lateinit var nightButton: Button
     private lateinit var playButton: Button
-    private val buttons = mutableListOf<Button>()
 
     private lateinit var location: CarLocation
     private lateinit var features: CarFeatures
@@ -208,16 +207,17 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Stargazing mode: turn every light in the car off so eyes adapt to the dark; turning it off restores them. */
     private fun toggleNightMode() {
         nightMode = !nightMode
-        sky.options = sky.options.copy(nightRed = nightMode)
         if (nightMode) {
-            features.dimLights { ok -> runOnUiThread { toast(if (ok) "실내 조명을 어둡게 했어요. 눈이 어둠에 익으면 별이 더 많이 보여요." else "관측 모드: 화면을 붉게 바꿨어요") } }
+            features.turnOffAllLights { ok ->
+                runOnUiThread { toast(if (ok) "실내등, 독서등, 무드등을 모두 껐어요. 눈이 어둠에 익으면 별이 더 많이 보여요." else "이 차에서는 조명을 끌 수 없어요") }
+            }
         } else {
             features.restoreLights()
         }
         nightButton.text = if (nightMode) "관측 모드 끄기" else "관측 모드"
-        restyle()
     }
 
     private fun setRestricted(r: Boolean) {
@@ -301,7 +301,6 @@ class MainActivity : Activity() {
         panelBody.visibility = View.VISIBLE
         panelActions.removeAllViews()
         panel.visibility = View.VISIBLE
-        restyle()
     }
 
     private fun closePanel() {
@@ -435,12 +434,12 @@ class MainActivity : Activity() {
         return root
     }
 
-    /** A full-width button inside the side panel. Not kept in [buttons]: the panel is rebuilt each time. */
-    private fun panelButton(label: String, onClick: () -> Unit) = button(label, register = false, onClick).apply {
+    /** A full-width button inside the side panel. */
+    private fun panelButton(label: String, onClick: () -> Unit) = button(label, onClick).apply {
         layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(4), 0, dp(4)) }
     }
 
-    private fun button(label: String, register: Boolean = true, onClick: () -> Unit) = Button(this).apply {
+    private fun button(label: String, onClick: () -> Unit) = Button(this).apply {
         text = label
         textSize = 18f
         isAllCaps = false
@@ -451,25 +450,9 @@ class MainActivity : Activity() {
         background = rounded(BUTTON)
         setOnClickListener { onClick() }
         layoutParams = LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(6), dp(4), dp(6), dp(4)) }
-        if (register) buttons += this
-        restyle(this)
     }
 
     private fun weight() = LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(6), dp(4), dp(6), dp(4)) }
-
-    /** Night mode turns all UI text red so it does not spoil dark adaptation. */
-    private fun restyle(only: Button? = null) {
-        val color = if (nightMode) NIGHT_TEXT else TEXT
-        (only?.let { listOf(it) } ?: buttons).forEach {
-            it.setTextColor(color)
-            it.background = rounded(if (nightMode) NIGHT_BUTTON else BUTTON)
-        }
-        if (only != null || !::panelBody.isInitialized) return
-        status.setTextColor(color)
-        panelBody.setTextColor(color)
-        panelTitle.setTextColor(if (nightMode) NIGHT_TEXT else Color.WHITE)
-        panelSubtitle.setTextColor(if (nightMode) NIGHT_TEXT else ACCENT)
-    }
 
     private fun rounded(color: Int) = GradientDrawable().apply {
         setColor(color)
@@ -484,7 +467,5 @@ class MainActivity : Activity() {
         private val TEXT = 0xFFE4ECF7.toInt()
         private val ACCENT = 0xFF8FC2FF.toInt()
         private val BUTTON = 0xFF1B2640.toInt()
-        private val NIGHT_TEXT = 0xFFD0453A.toInt()
-        private val NIGHT_BUTTON = 0xFF2A0C0B.toInt()
     }
 }

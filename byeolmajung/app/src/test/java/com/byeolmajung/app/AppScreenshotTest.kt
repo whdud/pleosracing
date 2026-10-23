@@ -62,7 +62,7 @@ class AppScreenshotTest {
         click(root, "앞유리 보기")
 
         click(root, "관측 모드")
-        shot(root, "7_night_mode")
+        shot(root, "7_stargazing_mode")
     }
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()

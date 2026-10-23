@@ -34,7 +34,7 @@ import kotlin.math.roundToInt
 /**
  * Web demo of the 별마중 car app. Same sky engine as the Android app; the screen, buttons and story flow
  * mirror MainActivity. Car-only features (car position and heading, cabin lights, sunroof blind) are
- * simulated: a preset place, a fixed heading and the red night-vision screen.
+ * simulated: a preset place and a fixed heading; turning the lights off is only announced.
  */
 fun main() {
     // Start as soon as the page structure exists; don't wait for web fonts or images.
@@ -69,6 +69,7 @@ private class WebApp {
     private var fastForward = false
     private var restricted = false
     private var options = SceneOptions(skyQuality = place.skyQuality)
+    private var lightsOff = false
     private var activeStory: Story? = null
     private var storyPage = 0
 
@@ -164,9 +165,9 @@ private class WebApp {
         val f = SkyScene.build(snap, cam, options.copy(density = density.toFloat()))
         frame = f
         val bg = background?.let { sky ->
-            val key = "${snap.epochMillis}|$mode|$viewAzimuth|$altitude|$fov|${cam.width}x${cam.height}|${options.skyQuality}|${options.nightRed}"
+            val key = "${snap.epochMillis}|$mode|$viewAzimuth|$altitude|$fov|${cam.width}x${cam.height}|${options.skyQuality}"
             if (key != bgKey) {
-                bgImage = sky.render(snap, cam, scaleDown = 5, skyQuality = options.skyQuality, nightRed = options.nightRed)
+                bgImage = sky.render(snap, cam, scaleDown = 5, skyQuality = options.skyQuality)
                 bgKey = key
             }
             bgImage
@@ -283,7 +284,7 @@ private class WebApp {
         button("plus") { timeOffset += 3_600_000.0; refreshSky() }
         button("play") { fastForward = !fastForward; text("play", if (fastForward) "■ 멈춤" else "▶ 빠르게") }
         button("mode") { toggleMode() }
-        button("night") { toggleNight() }
+        button("night") { toggleLights() }
         button("lines") {
             options = options.copy(showConstellations = !options.showConstellations)
             text("lines", if (options.showConstellations) "별자리 선 끄기" else "별자리 선")
@@ -305,12 +306,14 @@ private class WebApp {
         redraw()
     }
 
-    private fun toggleNight() {
-        options = options.copy(nightRed = !options.nightRed)
-        document.body?.classList?.toggle("night", options.nightRed)
-        text("night", if (options.nightRed) "관측 모드 끄기" else "관측 모드")
-        if (options.nightRed) toast("관측 모드: 화면을 붉게 바꿨어요. 실제 차에서는 실내등을 끄고 무드등을 가장 어둡게 낮춰요.")
-        redraw()
+    /** Stargazing mode: turn every light in the car off so eyes adapt to the dark. The web demo can only announce it. */
+    private fun toggleLights() {
+        lightsOff = !lightsOff
+        text("night", if (lightsOff) "관측 모드 끄기" else "관측 모드")
+        toast(
+            if (lightsOff) "실내등, 독서등, 무드등을 모두 껐어요. 눈이 어둠에 익으면 별이 더 많이 보여요. (웹 데모에서는 안내만 해요)"
+            else "조명을 원래대로 켰어요",
+        )
     }
 
     private fun setRestricted(r: Boolean) {

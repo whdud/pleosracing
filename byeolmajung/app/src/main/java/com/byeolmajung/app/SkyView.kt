@@ -118,9 +118,9 @@ class SkyView(context: Context) : View(context) {
     /** The background layer is the most expensive part; recompute it only when the view or the sky changes. */
     private fun backgroundFor(snap: SkySnapshot, camera: Camera): BackgroundImage? {
         val bg = background ?: return null
-        val key = listOf(snap.epochMillis, snap.observer, mode, viewAzimuth, altitude, fieldOfView, width, height, options.skyQuality, options.nightRed)
+        val key = listOf(snap.epochMillis, snap.observer, mode, viewAzimuth, altitude, fieldOfView, width, height, options.skyQuality)
         if (key != backgroundKey) {
-            backgroundImage = bg.render(snap, camera, scaleDown = 5, skyQuality = options.skyQuality, nightRed = options.nightRed)
+            backgroundImage = bg.render(snap, camera, scaleDown = 5, skyQuality = options.skyQuality)
             backgroundKey = key
         }
         return backgroundImage

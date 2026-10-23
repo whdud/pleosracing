@@ -60,8 +60,6 @@ class SkyPreviewTest {
             Camera(ViewMode.WINDSHIELD, 180.0, 15.0, 100.0, 1920, 720), SceneOptions(highlightConstellations = setOf("Ori")))
         render("tonight_south_lines", SkySnapshot.compute(catalog, tonight, yeongyang),
             Camera(ViewMode.WINDSHIELD, 180.0, 15.0, 100.0, 1920, 720), SceneOptions(showConstellations = true))
-        render("tonight_south_nightred", SkySnapshot.compute(catalog, tonight, yeongyang),
-            Camera(ViewMode.WINDSHIELD, 180.0, 15.0, 100.0, 1920, 720), SceneOptions(nightRed = true))
         render("winter_moon_west", SkySnapshot.compute(catalog, winter, yeongyang),
             Camera(ViewMode.WINDSHIELD, 250.0, 15.0, 100.0, 1920, 720), SceneOptions())
         render("tonight_seoul_city", SkySnapshot.compute(catalog, tonight, seoul),
@@ -78,7 +76,7 @@ class SkyPreviewTest {
         g.paint = GradientPaint(0f, 0f, Color(frame.skyTop, true), 0f, frame.height.toFloat(), Color(frame.skyBottom, true))
         g.fillRect(0, 0, frame.width, frame.height)
 
-        val bg = background.render(snapshot, camera, 4, options.skyQuality, options.nightRed)
+        val bg = background.render(snapshot, camera, 4, options.skyQuality)
         val bgImg = BufferedImage(bg.width, bg.height, BufferedImage.TYPE_INT_ARGB).apply { setRGB(0, 0, bg.width, bg.height, bg.pixels, 0, bg.width) }
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
         g.drawImage(bgImg, 0, 0, frame.width, frame.height, null)

@@ -27,7 +27,7 @@ class SkyBackground(private val milkyWay: SkyTexture?) {
      * @param scaleDown output is the screen size divided by this; the sky light is smooth, so 4 looks the same as full size.
      * @param skyQuality 0 for a dark site, 1 for a city sky.
      */
-    fun render(snapshot: SkySnapshot, camera: Camera, scaleDown: Int, skyQuality: Double, nightRed: Boolean): BackgroundImage {
+    fun render(snapshot: SkySnapshot, camera: Camera, scaleDown: Int, skyQuality: Double): BackgroundImage {
         val w = (camera.width + scaleDown - 1) / scaleDown
         val h = (camera.height + scaleDown - 1) / scaleDown
         val out = IntArray(w * h)
@@ -88,7 +88,7 @@ class SkyBackground(private val milkyWay: SkyTexture?) {
                     b += m * 74
                 }
 
-                out[py * w + px] = pack(r, g, b, nightRed)
+                out[py * w + px] = pack(r, g, b)
             }
         }
         return BackgroundImage(w, h, out)
@@ -119,15 +119,10 @@ class SkyBackground(private val milkyWay: SkyTexture?) {
         return (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
     }
 
-    private fun pack(r0: Double, g0: Double, b0: Double, nightRed: Boolean): Int {
-        var r = r0.coerceIn(0.0, 255.0)
-        var g = g0.coerceIn(0.0, 255.0)
-        var b = b0.coerceIn(0.0, 255.0)
-        if (nightRed) {
-            r = 0.3 * r + 0.59 * g + 0.11 * b
-            g = r * 0.12
-            b = r * 0.08
-        }
+    private fun pack(r0: Double, g0: Double, b0: Double): Int {
+        val r = r0.coerceIn(0.0, 255.0)
+        val g = g0.coerceIn(0.0, 255.0)
+        val b = b0.coerceIn(0.0, 255.0)
         val a = max(r, max(g, b))
         if (a < 1) return 0
         val s = 255 / a

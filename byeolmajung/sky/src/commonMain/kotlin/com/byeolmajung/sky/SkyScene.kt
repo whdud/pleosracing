@@ -73,7 +73,6 @@ data class SkyFrame(
 }
 
 data class SceneOptions(
-    val nightRed: Boolean = false,
     /** Constellation lines and names. Off by default for a natural sky; stories still highlight theirs. */
     val showConstellations: Boolean = false,
     /** 0 for a dark site, 1 for a city sky: fewer stars and a brighter horizon. */
@@ -102,7 +101,6 @@ object SkyScene {
 
     fun build(snapshot: SkySnapshot, camera: Camera, options: SceneOptions = SceneOptions()): SkyFrame {
         val d = options.density
-        val tint: (Int) -> Int = if (options.nightRed) ::toNightRed else { c -> c }
         val sunAlt = snapshot.sunAltitude
         val limitingMagnitude = minOf(limitingMagnitude(sunAlt), 6.5 - 2.5 * options.skyQuality)
         val (skyTop, skyBottom) = skyColors(sunAlt)
@@ -127,13 +125,13 @@ object SkyScene {
                         val p = camera.project(a) ?: return@zipWithNext
                         val q = camera.project(b) ?: return@zipWithNext
                         if (!camera.isOnScreen(p, 200f) && !camera.isOnScreen(q, 200f)) return@zipWithNext
-                        lines += LineSeg(p.x, p.y, q.x, q.y, tint(color), width)
+                        lines += LineSeg(p.x, p.y, q.x, q.y, color, width)
                     }
                 }
                 val lh = snapshot.constellationLabels[ci]
                 if (lh.alt > 0) {
                     camera.project(lh)?.takeIf { camera.isOnScreen(it) }?.let { p ->
-                        labels += Label(c.nameKo, p.x, p.y, (if (highlighted) 22f else 15f) * d, tint(if (highlighted) LABEL_HIGHLIGHT else LABEL), highlighted)
+                        labels += Label(c.nameKo, p.x, p.y, (if (highlighted) 22f else 15f) * d, if (highlighted) LABEL_HIGHLIGHT else LABEL, highlighted)
                         hits += HitTarget(p.x, p.y, 28f * d, SkyObject.ConstellationObject(c), priority = 3)
                     }
                 }
@@ -151,16 +149,16 @@ object SkyScene {
             val radius = starRadius(star.magnitude) * d
             val alpha = starAlpha(star.magnitude, limitingMagnitude)
             val glow = ((2.2 - star.magnitude) / 3.5).coerceIn(0.0, 1.0).toFloat()
-            stars += StarDot(p.x, p.y, radius, tint(withAlpha(bvToRgb(star.colorIndex), alpha)), glow)
+            stars += StarDot(p.x, p.y, radius, withAlpha(bvToRgb(star.colorIndex), alpha), glow)
             if (star.magnitude < 4.5) {
                 hits += HitTarget(p.x, p.y, radius + 6f * d, SkyObject.StarObject(i, star), priority = if (star.magnitude < 2) 1 else 2)
             }
             val name = star.nameKo
             if (name != null && star.magnitude < (if (options.showConstellations) 2.1 else 1.3)) {
-                labels += Label(name, p.x + radius + 8f * d, p.y - radius - 6f * d, 13f * d, tint(STAR_LABEL))
+                labels += Label(name, p.x + radius + 8f * d, p.y - radius - 6f * d, 13f * d, STAR_LABEL)
             }
             if (options.selected is SkyObject.StarObject && options.selected.index == i) {
-                rings += Ring(p.x, p.y, radius + 14f * d, tint(SELECTION), 2.5f * d)
+                rings += Ring(p.x, p.y, radius + 14f * d, SELECTION, 2.5f * d)
             }
         }
 
@@ -175,38 +173,38 @@ object SkyScene {
             }
             if (body.kind == BodyKind.PLANET) {
                 // To the naked eye a planet is a bright, steady point, not a disc.
-                stars += StarDot(p.x, p.y, radius, tint(color), glow = ((1.5 - body.magnitude) / 4).coerceIn(0.2, 1.0).toFloat())
+                stars += StarDot(p.x, p.y, radius, color, glow = ((1.5 - body.magnitude) / 4).coerceIn(0.2, 1.0).toFloat())
             } else {
-                bodies += BodyDisc(p.x, p.y, radius, tint(color), body.kind, body.phase, body.waxing)
+                bodies += BodyDisc(p.x, p.y, radius, color, body.kind, body.phase, body.waxing)
             }
-            labels += Label(body.nameKo, p.x + radius + 6f * d, p.y + radius + 14f * d, 15f * d, tint(color), bold = true)
+            labels += Label(body.nameKo, p.x + radius + 6f * d, p.y + radius + 14f * d, 15f * d, color, bold = true)
             hits += HitTarget(p.x, p.y, radius + 8f * d, SkyObject.BodyObject(body), priority = 0)
             if (options.selected is SkyObject.BodyObject && options.selected.body.id == body.id) {
-                rings += Ring(p.x, p.y, radius + 14f * d, tint(SELECTION), 2.5f * d)
+                rings += Ring(p.x, p.y, radius + 14f * d, SELECTION, 2.5f * d)
             }
         }
 
         // Horizon, terrain, ground and compass directions.
-        val horizon = horizonCircle(camera, tint(HORIZON_LINE), 0f)
+        val horizon = horizonCircle(camera, HORIZON_LINE, 0f)
         val terrain = terrainPolygon(camera)
         val cardinalAlt = if (camera.mode == ViewMode.SUNROOF) 4.0 else 0.0
         val cardinalOffset = if (camera.mode == ViewMode.SUNROOF) 0f else 30f * d
         CARDINALS.forEach { (text, az) ->
             camera.project(cardinalAlt, az)?.takeIf { camera.isOnScreen(it) }?.let { p ->
-                labels += Label(text, p.x, p.y + cardinalOffset, (if (text.length == 1) 22f else 16f) * d, tint(CARDINAL), bold = text.length == 1)
+                labels += Label(text, p.x, p.y + cardinalOffset, (if (text.length == 1) 22f else 16f) * d, CARDINAL, bold = text.length == 1)
             }
         }
 
         return SkyFrame(
             width = camera.width,
             height = camera.height,
-            skyTop = tint(skyTop),
-            skyBottom = tint(skyBottom),
-            groundColor = tint(GROUND),
+            skyTop = skyTop,
+            skyBottom = skyBottom,
+            groundColor = GROUND,
             horizon = horizon,
             groundOutside = camera.mode == ViewMode.SUNROOF || camera.altitude > 0,
             terrain = terrain,
-            terrainColor = tint(TERRAIN),
+            terrainColor = TERRAIN,
             lines = lines,
             stars = stars,
             bodies = bodies,
@@ -319,16 +317,6 @@ object SkyScene {
     }
 
     private fun withAlpha(color: Int, alpha: Float): Int = ((alpha * 255).toInt() shl 24) or (color and 0xFFFFFF)
-
-    /** Night-vision palette: keep brightness, drop everything but red. */
-    internal fun toNightRed(color: Int): Int {
-        val a = color ushr 24
-        val r = (color shr 16) and 0xFF
-        val g = (color shr 8) and 0xFF
-        val b = color and 0xFF
-        val lum = (0.3 * r + 0.59 * g + 0.11 * b).toInt().coerceIn(0, 255)
-        return (a shl 24) or (lum shl 16) or ((lum * 0.12).toInt() shl 8) or (lum * 0.08).toInt()
-    }
 
     private fun lerpColor(a: Int, b: Int, t: Double): Int {
         val k = t.coerceIn(0.0, 1.0)
