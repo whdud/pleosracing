@@ -60,7 +60,7 @@ private class WebApp {
 
     private val canvas = el<HTMLCanvasElement>("sky")
     private val ctx = canvas.getContext("2d") as CanvasRenderingContext2D
-    private val renderer = WebRenderer()
+    private val renderer = WebRenderer { redraw() }
 
     private var catalog: SkyCatalog? = null
     private var background: SkyBackground? = null
@@ -106,11 +106,13 @@ private class WebApp {
     private fun load() {
         window.fetch("sky/stars.csv").then { r -> r.text() }.then { stars ->
             window.fetch("sky/constellations.txt").then { r -> r.text() }.then { cons ->
-                catalog = SkyCatalog.parse(stars, cons)
+              window.fetch("sky/art.txt").then { r -> r.text() }.then { art ->
+                catalog = SkyCatalog.parse(stars, cons, art)
                 el<HTMLElement>("loading").hidden = true
                 refreshSky()
                 // Fade the sky in once the first frame is drawn.
                 window.requestAnimationFrame { canvas.classList.add("ready") }
+              }
             }
         }
         val img = document.createElement("img") as HTMLImageElement
@@ -292,6 +294,11 @@ private class WebApp {
         button("lines") {
             options = options.copy(showConstellations = !options.showConstellations)
             setOn("lines", options.showConstellations)
+            redraw()
+        }
+        button("art") {
+            options = options.copy(showArt = !options.showArt)
+            setOn("art", options.showArt)
             redraw()
         }
         button("stories") { showStoryList() }

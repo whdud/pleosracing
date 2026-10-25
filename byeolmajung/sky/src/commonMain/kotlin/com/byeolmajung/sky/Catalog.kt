@@ -23,7 +23,17 @@ data class Constellation(
     val lines: List<List<Equatorial>>,
 )
 
-class SkyCatalog(val stars: List<Star>, val constellations: List<Constellation>) {
+/** One point of a constellation drawing pinned to a star: ([u], [v]) in the image (0..1) sits on [star]. */
+data class ArtAnchor(val u: Double, val v: Double, val star: Equatorial)
+
+/** A constellation drawing ([file] under sky/art/) placed on the sky by three anchor stars. */
+data class ConstellationArt(val abbr: String, val file: String, val anchors: List<ArtAnchor>)
+
+class SkyCatalog(
+    val stars: List<Star>,
+    val constellations: List<Constellation>,
+    val art: List<ConstellationArt> = emptyList(),
+) {
 
     private val byAbbr = constellations.associateBy { it.abbr }
 
@@ -31,8 +41,18 @@ class SkyCatalog(val stars: List<Star>, val constellations: List<Constellation>)
 
     companion object {
         /** Stars are kept faintest first, which is also the order they are painted in (bright ones on top). */
-        fun parse(starsCsv: String, constellationsTxt: String): SkyCatalog =
-            SkyCatalog(parseStars(starsCsv).sortedByDescending { it.magnitude }, parseConstellations(constellationsTxt))
+        fun parse(starsCsv: String, constellationsTxt: String, artTxt: String = ""): SkyCatalog =
+            SkyCatalog(parseStars(starsCsv).sortedByDescending { it.magnitude }, parseConstellations(constellationsTxt), parseArt(artTxt))
+
+        /** `A|abbr|file|u v ra dec|u v ra dec|u v ra dec`, written by tools/prepare_art.py. */
+        fun parseArt(text: String): List<ConstellationArt> =
+            text.lineSequence().filter { it.startsWith("A|") }.map { line ->
+                val f = line.split('|')
+                ConstellationArt(f[1], f[2], f.drop(3).map { a ->
+                    val (u, v, ra, dec) = a.split(' ').map(String::toDouble)
+                    ArtAnchor(u, v, Equatorial(ra, dec))
+                })
+            }.toList()
 
         fun parseStars(csv: String): List<Star> =
             csv.lineSequence().drop(1).filter { it.isNotBlank() }.map { line ->

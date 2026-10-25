@@ -50,6 +50,9 @@ class AppScreenshotTest {
         click(root, "별자리 선")
         shot(root, "2_constellation_lines")
         click(root, "별자리 선")
+        click(root, "별자리 그림")
+        shot(root, "2b_constellation_art")
+        click(root, "별자리 그림")
 
         click(root, "별자리 이야기")
         shot(root, "3_story_list")

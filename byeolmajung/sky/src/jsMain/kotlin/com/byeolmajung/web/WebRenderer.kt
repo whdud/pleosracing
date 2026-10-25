@@ -1,5 +1,6 @@
 package com.byeolmajung.web
 
+import com.byeolmajung.sky.ArtPlacement
 import com.byeolmajung.sky.BackgroundImage
 import com.byeolmajung.sky.BodyDisc
 import com.byeolmajung.sky.BodyKind
@@ -9,16 +10,21 @@ import kotlinx.browser.document
 import org.khronos.webgl.Uint8ClampedArray
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.ImageData
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.hypot
 
-/** Paints [SkyFrame] primitives on an HTML canvas; the web twin of the Android SkyCanvasRenderer. */
-class WebRenderer {
+/**
+ * Paints [SkyFrame] primitives on an HTML canvas; the web twin of the Android SkyCanvasRenderer.
+ * [onArtLoaded] asks for a repaint once a constellation drawing has downloaded.
+ */
+class WebRenderer(private val onArtLoaded: () -> Unit = {}) {
 
     private val sprites = HashMap<Int, HTMLCanvasElement>()
     private var bgCanvas: HTMLCanvasElement? = null
+    private val artImages = HashMap<String, HTMLImageElement>()
 
     fun draw(ctx: CanvasRenderingContext2D, frame: SkyFrame, background: BackgroundImage?) {
         val w = frame.width.toDouble()
@@ -31,6 +37,7 @@ class WebRenderer {
         ctx.fillRect(0.0, 0.0, w, h)
 
         background?.let { drawBackground(ctx, frame, it) }
+        frame.art.forEach { drawArt(ctx, it) }
 
         ctx.asDynamic().lineCap = "round"
         frame.lines.forEach {
@@ -59,6 +66,23 @@ class WebRenderer {
             ctx.font = "${if (it.bold) "700" else "400"} ${it.size}px 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif"
             ctx.fillText(it.text, it.x.toDouble(), it.y.toDouble())
         }
+    }
+
+    private fun drawArt(ctx: CanvasRenderingContext2D, art: ArtPlacement) {
+        val img = artImages.getOrPut(art.file) {
+            (document.createElement("img") as HTMLImageElement).apply {
+                onload = { onArtLoaded() }
+                src = "sky/art/${art.file}"
+            }
+        }
+        if (!img.complete || img.naturalWidth == 0) return
+        val w = img.naturalWidth.toDouble()
+        val h = img.naturalHeight.toDouble()
+        ctx.save()
+        ctx.globalAlpha = art.alpha.toDouble()
+        ctx.setTransform(art.a / w, art.b / w, art.c / h, art.d / h, art.e.toDouble(), art.f.toDouble())
+        ctx.drawImage(img, 0.0, 0.0)
+        ctx.restore()
     }
 
     private fun drawBackground(ctx: CanvasRenderingContext2D, frame: SkyFrame, bg: BackgroundImage) {

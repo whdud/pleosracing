@@ -6,6 +6,7 @@
 
 - **지금 이 자리의 밤하늘**: 현재 시각과 위치로 별 8,920개(6.5등급까지), 88개 별자리, 달(위상 포함), 수성·금성·화성·목성·토성의 위치를 실시간으로 계산합니다
 - **실제 같은 하늘**: NASA 은하수 지도로 그린 은하수, 지평선의 대기 빛과 도시 불빛, 달빛에 밝아지는 하늘, 밝은 별의 빛번짐, 언덕과 나무 실루엣. 장소의 하늘 밝기(도시/시골)에 따라 보이는 별 수가 달라집니다
+- **별자리 그림**: 버튼으로 켜면 별자리마다 그림(84개)이 실제 별 위치에 맞춰 겹쳐집니다. 이야기를 고르거나 별자리 이름을 누르면 그 별자리 그림만 진하게 보여 줍니다
 - **별자리 선**: 기본은 꺼져 있어 자연스러운 하늘로 보이고, 버튼으로 켜거나 이야기를 고르면 해당 별자리만 강조됩니다
 - **차 방향 기준 보기**: FusedLocation SDK의 차량 heading으로 앞유리 너머 방향의 하늘을 보여줍니다
 - **선루프 보기**: 머리 위 하늘 전체(천정 시점). 선루프 가림막이 열리면 자동으로 전환하고, 이 모드를 켜면 가림막을 엽니다
@@ -95,6 +96,8 @@ Pleos 이미지를 받기 전에도 구글의 일반 Android Automotive 에뮬�
 | 별자리 선과 이름 (`constellations.txt`) | [d3-celestial](https://github.com/ofrohn/d3-celestial) (Olaf Frohn) | BSD 3-Clause |
 | 은하수 배경 (`milkyway.jpg`) | [NASA SVS Deep Star Maps 2020](https://svs.gsfc.nasa.gov/4851) `milkyway_2020_4k.exr`를 2048×1024로 줄이고 톤 조정. Credit: NASA/Goddard Space Flight Center Scientific Visualization Studio. Gaia DR2: ESA/Gaia/DPAC | NASA 공개 자료 (출처 표기) |
 | 행성 궤도 요소 | JPL "Keplerian Elements for Approximate Positions of the Major Planets" (E. M. Standish) | 공개 자료 |
+
+별자리 그림 84점은 Stellarium의 서양 별자리 그림(Johan Meuris 작)을 가공한 것으로 Free Art License 1.3을 따릅니다 (`app/licenses/Stellarium-constellation-art.txt`, 변환: `tools/prepare_art.py`).
 
 글꼴 Hahmlet(시계, 제목, 이야기 본문)은 SIL Open Font License 1.1로 배포되며 라이선스 전문은 `app/licenses/Hahmlet-OFL.txt`에 있습니다.
 

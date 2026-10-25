@@ -90,6 +90,7 @@ class MainActivity : Activity() {
     private lateinit var windshieldButton: StripButton
     private lateinit var sunroofButton: StripButton
     private lateinit var linesButton: StripButton
+    private lateinit var artButton: StripButton
     private lateinit var nightButton: StripButton
     private lateinit var playButton: StripButton
     private var listenButton: PaperButton? = null
@@ -121,6 +122,7 @@ class MainActivity : Activity() {
             val loaded = SkyCatalog.parse(
                 assets.open("sky/stars.csv").bufferedReader().readText(),
                 assets.open("sky/constellations.txt").bufferedReader().readText(),
+                assets.open("sky/art.txt").bufferedReader().readText(),
             )
             val texture = android.graphics.BitmapFactory.decodeStream(assets.open("sky/milkyway.jpg")).let { bmp ->
                 val pixels = IntArray(bmp.width * bmp.height)
@@ -265,6 +267,11 @@ class MainActivity : Activity() {
     private fun toggleLines() {
         sky.options = sky.options.copy(showConstellations = !sky.options.showConstellations)
         linesButton.on = sky.options.showConstellations
+    }
+
+    private fun toggleArt() {
+        sky.options = sky.options.copy(showArt = !sky.options.showArt)
+        artButton.on = sky.options.showArt
     }
 
     /** Stargazing mode: turn every light in the car off so eyes adapt to the dark; turning it off restores them. */
@@ -632,8 +639,9 @@ class MainActivity : Activity() {
         windshieldButton = stripButton("앞유리") { setMode(ViewMode.WINDSHIELD) }.apply { on = true }
         sunroofButton = stripButton("선루프") { setMode(ViewMode.SUNROOF) }
         linesButton = stripButton("별자리 선") { toggleLines() }
+        artButton = stripButton("별자리 그림") { toggleArt() }
         nightButton = stripButton("관측 모드") { toggleNightMode() }
-        listOf(windshieldButton, sunroofButton, linesButton, nightButton).forEach(strip::addView)
+        listOf(windshieldButton, sunroofButton, linesButton, artButton, nightButton).forEach(strip::addView)
         root.addView(strip, FrameLayout.LayoutParams(-1, dp(STRIP_HEIGHT), Gravity.BOTTOM))
 
         // Right: the detail sheet.

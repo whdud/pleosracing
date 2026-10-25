@@ -24,7 +24,7 @@ class SkyPreviewTest {
 
     private val catalog: SkyCatalog by lazy {
         val dir = File(System.getProperty("assets.dir"), "sky")
-        SkyCatalog.parse(File(dir, "stars.csv").readText(), File(dir, "constellations.txt").readText())
+        SkyCatalog.parse(File(dir, "stars.csv").readText(), File(dir, "constellations.txt").readText(), File(dir, "art.txt").readText())
     }
 
     private val outDir = File(System.getProperty("preview.dir")).apply { mkdirs() }
@@ -42,6 +42,24 @@ class SkyPreviewTest {
         assertTrue(catalog.stars.size > 8000)
         assertTrue(catalog.constellations.size >= 88)
         assertTrue(catalog.constellation("Ori")?.nameKo == "오리온자리")
+    }
+
+    @Test
+    fun constellationArtSitsOnItsAnchorStars() {
+        assertTrue(catalog.art.size >= 80)
+        val snap = SkySnapshot.compute(catalog, ZonedDateTime.parse("2026-01-15T22:00:00+09:00").toInstant().toEpochMilli(), yeongyang)
+        val camera = Camera(ViewMode.WINDSHIELD, 180.0, 30.0, 100.0, 1920, 720)
+        val frame = SkyScene.build(snap, camera, SceneOptions(highlightConstellations = setOf("Ori")))
+        val orion = frame.art.single()
+        assertEquals("Ori.png", orion.file)
+        val sky = HorizonTransform(snap.epochMillis, snap.observer)
+        catalog.art.first { it.abbr == "Ori" }.anchors.forEach { anchor ->
+            val star = camera.project(sky.toHorizontal(anchor.star))!!
+            val x = orion.a * anchor.u + orion.c * anchor.v + orion.e
+            val y = orion.b * anchor.u + orion.d * anchor.v + orion.f
+            assertTrue(kotlin.math.abs(x - star.x) < 0.5 && kotlin.math.abs(y - star.y) < 0.5, "anchor off by ${x - star.x}, ${y - star.y}")
+        }
+        assertTrue(SkyScene.build(snap, camera).art.isEmpty())
     }
 
     @Test

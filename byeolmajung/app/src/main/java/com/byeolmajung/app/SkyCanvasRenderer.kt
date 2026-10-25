@@ -3,6 +3,7 @@ package com.byeolmajung.app
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
@@ -12,6 +13,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
+import com.byeolmajung.sky.ArtPlacement
 import com.byeolmajung.sky.BackgroundImage
 import com.byeolmajung.sky.BodyDisc
 import com.byeolmajung.sky.BodyKind
@@ -19,8 +21,11 @@ import com.byeolmajung.sky.SkyFrame
 import com.byeolmajung.sky.StarDot
 import kotlin.math.abs
 
-/** Paints [SkyFrame] primitives on an Android canvas. Mirrors the JVM preview renderer in the sky module's tests. */
-class SkyCanvasRenderer {
+/**
+ * Paints [SkyFrame] primitives on an Android canvas. Mirrors the JVM preview renderer in the sky module's tests.
+ * [loadArt] returns a constellation drawing by file name, or null if it cannot be read.
+ */
+class SkyCanvasRenderer(private val loadArt: (String) -> Bitmap? = { null }) {
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -42,6 +47,7 @@ class SkyCanvasRenderer {
     fun draw(canvas: Canvas, frame: SkyFrame, background: BackgroundImage?) {
         drawSky(canvas, frame)
         background?.let { drawBackground(canvas, frame, it) }
+        frame.art.forEach { drawArt(canvas, it) }
 
         frame.lines.forEach {
             stroke.color = it.color
@@ -116,6 +122,32 @@ class SkyCanvasRenderer {
         }
     }
 
+    // Drawings are kept as alpha masks (a quarter of the memory of full color) and painted in [ART_COLOR].
+    private val artMasks = HashMap<String, Bitmap?>()
+    private val artPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG).apply { color = ART_COLOR }
+    private val artMatrix = Matrix()
+    private val artValues = FloatArray(9)
+
+    private fun drawArt(canvas: Canvas, art: ArtPlacement) {
+        val mask = artMasks.getOrPut(art.file) {
+            loadArt(art.file)?.let { full -> full.extractAlpha().also { full.recycle() } }
+        } ?: return
+        val w = mask.width.toFloat()
+        val h = mask.height.toFloat()
+        artValues[Matrix.MSCALE_X] = art.a / w
+        artValues[Matrix.MSKEW_X] = art.c / h
+        artValues[Matrix.MTRANS_X] = art.e
+        artValues[Matrix.MSKEW_Y] = art.b / w
+        artValues[Matrix.MSCALE_Y] = art.d / h
+        artValues[Matrix.MTRANS_Y] = art.f
+        artValues[Matrix.MPERSP_0] = 0f
+        artValues[Matrix.MPERSP_1] = 0f
+        artValues[Matrix.MPERSP_2] = 1f
+        artMatrix.setValues(artValues)
+        artPaint.alpha = (art.alpha * 255).toInt()
+        canvas.drawBitmap(mask, artMatrix, artPaint)
+    }
+
     private fun drawBackground(canvas: Canvas, frame: SkyFrame, bg: BackgroundImage) {
         var bmp = backgroundBitmap
         if (bmp == null || bmp.width != bg.width || bmp.height != bg.height) {
@@ -182,5 +214,6 @@ class SkyCanvasRenderer {
 
     companion object {
         private const val SPRITE = 48
+        private val ART_COLOR = 0xFFDCE4F2.toInt()
     }
 }

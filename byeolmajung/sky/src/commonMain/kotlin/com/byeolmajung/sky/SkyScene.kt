@@ -38,6 +38,16 @@ data class LineSeg(val x1: Float, val y1: Float, val x2: Float, val y2: Float, v
 data class BodyDisc(val x: Float, val y: Float, val radius: Float, val color: Int, val kind: BodyKind, val phase: Double, val waxing: Boolean)
 data class Label(val text: String, val x: Float, val y: Float, val size: Float, val color: Int, val bold: Boolean = false)
 data class Ring(val x: Float, val y: Float, val radius: Float, val color: Int, val width: Float)
+/**
+ * A constellation drawing placed on screen. The image's own coordinates (u, v from 0 to 1) map to screen pixels by
+ * x = a·u + c·v + e and y = b·u + d·v + f, the affine map that puts its three anchor points on their stars.
+ */
+data class ArtPlacement(
+    val file: String,
+    val a: Float, val b: Float, val c: Float, val d: Float, val e: Float, val f: Float,
+    val alpha: Float,
+)
+
 data class HitTarget(val x: Float, val y: Float, val radius: Float, val target: SkyObject, val priority: Int)
 
 data class SkyFrame(
@@ -55,6 +65,8 @@ data class SkyFrame(
     /** Distant hills and trees standing on the horizon: a closed polygon painted in [terrainColor]. */
     val terrain: List<ScreenPoint>,
     val terrainColor: Int,
+    /** Constellation drawings, painted over the Milky Way and under the lines and stars. */
+    val art: List<ArtPlacement>,
     val lines: List<LineSeg>,
     val stars: List<StarDot>,
     val bodies: List<BodyDisc>,
@@ -75,6 +87,8 @@ data class SkyFrame(
 data class SceneOptions(
     /** Constellation lines and names. Off by default for a natural sky; stories still highlight theirs. */
     val showConstellations: Boolean = false,
+    /** Constellation drawings for every constellation. Highlighted and selected ones show theirs regardless. */
+    val showArt: Boolean = false,
     /** 0 for a dark site, 1 for a city sky: fewer stars and a brighter horizon. */
     val skyQuality: Double = 0.0,
     val highlightConstellations: Set<String> = emptySet(),
@@ -111,6 +125,7 @@ object SkyScene {
         val rings = mutableListOf<Ring>()
         val labels = mutableListOf<Label>()
         val hits = mutableListOf<HitTarget>()
+        val art = constellationArt(snapshot, camera, options)
 
         // Constellation lines and names.
         if (options.showConstellations || options.highlightConstellations.isNotEmpty()) {
@@ -205,6 +220,7 @@ object SkyScene {
             groundOutside = camera.mode == ViewMode.SUNROOF || camera.altitude > 0,
             terrain = terrain,
             terrainColor = TERRAIN,
+            art = art,
             lines = lines,
             stars = stars,
             bodies = bodies,
@@ -213,6 +229,43 @@ object SkyScene {
             hitTargets = hits,
             isDaylight = sunAlt > -6,
         )
+    }
+
+    private fun constellationArt(snapshot: SkySnapshot, camera: Camera, options: SceneOptions): List<ArtPlacement> {
+        val selected = (options.selected as? SkyObject.ConstellationObject)?.constellation?.abbr
+        if (!options.showArt && options.highlightConstellations.isEmpty() && selected == null) return emptyList()
+        val sky = HorizonTransform(snapshot.epochMillis, snapshot.observer)
+        val screen = hypot(camera.width.toFloat(), camera.height.toFloat())
+        return snapshot.catalog.art.mapNotNull { art ->
+            val featured = art.abbr in options.highlightConstellations || art.abbr == selected
+            if (!options.showArt && !featured) return@mapNotNull null
+            val points = art.anchors.map { anchor ->
+                val h = sky.toHorizontal(anchor.star)
+                if (h.alt < -10) return@mapNotNull null
+                camera.project(h) ?: return@mapNotNull null
+            }
+            if (points.none { camera.isOnScreen(it, screen / 3) }) return@mapNotNull null
+            val (a0, a1, a2) = art.anchors
+            val x0 = points[0].x.toDouble(); val y0 = points[0].y.toDouble()
+            val x1 = points[1].x - x0; val y1 = points[1].y - y0
+            val x2 = points[2].x - x0; val y2 = points[2].y - y0
+            val du1 = a1.u - a0.u; val dv1 = a1.v - a0.v
+            val du2 = a2.u - a0.u; val dv2 = a2.v - a0.v
+            val det = du1 * dv2 - du2 * dv1
+            if (kotlin.math.abs(det) < 1e-6) return@mapNotNull null
+            val a = (x1 * dv2 - x2 * dv1) / det
+            val c = (x2 * du1 - x1 * du2) / det
+            val b = (y1 * dv2 - y2 * dv1) / det
+            val d = (y2 * du1 - y1 * du2) / det
+            // Near the edge of a very wide view the drawing can stretch past usefulness; leave it out.
+            if (hypot(a, b) > 3.0 * screen || hypot(c, d) > 3.0 * screen) return@mapNotNull null
+            ArtPlacement(
+                art.file,
+                a.toFloat(), b.toFloat(), c.toFloat(), d.toFloat(),
+                (x0 - a * a0.u - c * a0.v).toFloat(), (y0 - b * a0.u - d * a0.v).toFloat(),
+                alpha = if (featured) 0.5f else 0.2f,
+            )
+        }
     }
 
     private val PLANET_COLORS = mapOf(

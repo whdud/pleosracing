@@ -69,7 +69,9 @@ class SkyView(context: Context) : View(context) {
     private var frame: SkyFrame? = null
     private var animator: ValueAnimator? = null
     private val density = resources.displayMetrics.density
-    private val renderer = SkyCanvasRenderer()
+    private val renderer = SkyCanvasRenderer { file ->
+        runCatching { context.assets.open("sky/art/$file").use(android.graphics.BitmapFactory::decodeStream) }.getOrNull()
+    }
 
     /** The azimuth currently in the middle of the view (windshield) or at the top (sunroof). */
     val viewAzimuth: Double get() = ((carHeading + headingOffset) % 360 + 360) % 360
