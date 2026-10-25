@@ -171,7 +171,8 @@ private class WebApp {
             canvas.width = w
             canvas.height = h
         }
-        return Camera(mode, viewAzimuth, altitude, fov, w, h)
+        // Sunroof mode is the same view tilted up (see setMode), so the projection is always the windshield one.
+        return Camera(ViewMode.WINDSHIELD, viewAzimuth, altitude, fov, w, h)
     }
 
     private fun paint() {
@@ -191,9 +192,8 @@ private class WebApp {
     }
 
     private fun lookAt(target: Horizontal) {
-        if (mode == ViewMode.SUNROOF) return
         val offset = ((target.az - place.heading + 540) % 360) - 180
-        animateTo(offset, (target.alt - 10).coerceIn(DEFAULT_ALTITUDE, 70.0))
+        animateTo(offset, (target.alt - 10).coerceIn(DEFAULT_ALTITUDE, MAX_ALTITUDE))
     }
 
     private fun animateTo(offset: Double, alt: Double) {
@@ -254,12 +254,8 @@ private class WebApp {
             val ppd = camera().pixelsPerDegree / density
             val dx = cur.first - prev.first
             val dy = cur.second - prev.second
-            if (mode == ViewMode.SUNROOF) {
-                headingOffset -= dx / ppd * 0.5
-            } else {
-                headingOffset -= dx / ppd
-                altitude = (altitude + dy / ppd).coerceIn(5.0, 80.0)
-            }
+            headingOffset -= dx / ppd
+            altitude = (altitude + dy / ppd).coerceIn(5.0, MAX_ALTITUDE)
             headingOffset = ((headingOffset + 540) % 360) - 180
             updateStatus()
             redraw()
@@ -287,14 +283,14 @@ private class WebApp {
     }
 
     private fun zoomTo(value: Double) {
-        fov = value.coerceIn(if (mode == ViewMode.SUNROOF) 90.0..200.0 else 30.0..150.0)
+        fov = value.coerceIn(30.0, 150.0)
         redraw()
     }
 
     // --- Controls ---
 
     private fun wireControls() {
-        button("back-now") { timeOffset = 0.0; setFastForward(false); animateTo(0.0, DEFAULT_ALTITUDE); refreshSky() }
+        button("back-now") { timeOffset = 0.0; setFastForward(false); animateTo(0.0, if (mode == ViewMode.SUNROOF) SUNROOF_ALTITUDE else DEFAULT_ALTITUDE); refreshSky() }
         button("minus") { timeOffset -= HOUR; refreshSky() }
         button("plus") { timeOffset += HOUR; refreshSky() }
         button("play") { setFastForward(!fastForward) }
@@ -333,7 +329,8 @@ private class WebApp {
     private fun setMode(m: ViewMode) {
         if (mode == m) return
         mode = m
-        fov = if (mode == ViewMode.SUNROOF) 180.0 else DEFAULT_FOV
+        // Look up through the sunroof, or back down to the horizon through the windshield.
+        animateTo(headingOffset, if (mode == ViewMode.SUNROOF) SUNROOF_ALTITUDE else DEFAULT_ALTITUDE)
         setOn("seg-windshield", mode == ViewMode.WINDSHIELD)
         setOn("seg-sunroof", mode == ViewMode.SUNROOF)
         if (mode == ViewMode.SUNROOF) toast("선루프 가림막을 열고 머리 위 하늘을 보여 드려요 (실제 차에서는 가림막이 자동으로 열려요)")
@@ -644,6 +641,8 @@ private class WebApp {
     companion object {
         const val DEFAULT_FOV = 100.0
         const val DEFAULT_ALTITUDE = 15.0
+        const val SUNROOF_ALTITUDE = 70.0
+        const val MAX_ALTITUDE = 85.0
         const val HOUR = 3_600_000.0
         const val DAY = 24 * HOUR
 

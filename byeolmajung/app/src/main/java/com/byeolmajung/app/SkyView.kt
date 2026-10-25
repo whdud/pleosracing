@@ -31,11 +31,15 @@ class SkyView(context: Context) : View(context) {
             invalidate()
         }
 
+    /**
+     * Sunroof mode is the same view tilted up toward the sky overhead, as if looking up through the roof;
+     * the windshield view brings it back down to the horizon.
+     */
     var mode = ViewMode.WINDSHIELD
         set(value) {
+            if (field == value) return
             field = value
-            fieldOfView = if (value == ViewMode.SUNROOF) 180.0 else DEFAULT_FOV
-            invalidate()
+            animateTo(headingOffset, if (value == ViewMode.SUNROOF) SUNROOF_ALTITUDE else DEFAULT_ALTITUDE)
         }
 
     /** Car heading in degrees from north, from the vehicle location service. */
@@ -81,19 +85,18 @@ class SkyView(context: Context) : View(context) {
         runCatching { context.assets.open("sky/art/$file").use(android.graphics.BitmapFactory::decodeStream) }.getOrNull()
     }
 
-    /** The azimuth currently in the middle of the view (windshield) or at the top (sunroof). */
+    /** The azimuth currently in the middle of the view. */
     val viewAzimuth: Double get() = ((carHeading + headingOffset) % 360 + 360) % 360
 
     val isFollowingCar: Boolean get() = headingOffset == 0.0
 
-    fun followCar() = animateTo(0.0, DEFAULT_ALTITUDE)
+    fun followCar() = animateTo(0.0, if (mode == ViewMode.SUNROOF) SUNROOF_ALTITUDE else DEFAULT_ALTITUDE)
 
-    /** Turns the view toward a point in the sky (windshield mode). */
+    /** Turns the view toward a point in the sky. */
     fun lookAt(target: Horizontal) {
-        if (mode == ViewMode.SUNROOF) return
         var offset = target.az - carHeading
         offset = ((offset + 540) % 360) - 180
-        animateTo(offset, (target.alt - 10).coerceIn(DEFAULT_ALTITUDE, 70.0))
+        animateTo(offset, (target.alt - 10).coerceIn(DEFAULT_ALTITUDE, MAX_ALTITUDE))
     }
 
     private fun animateTo(offset: Double, alt: Double) {
@@ -119,11 +122,13 @@ class SkyView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         val snap = snapshot ?: return
         if (width == 0 || height == 0) return
-        val camera = Camera(mode, viewAzimuth, altitude, fieldOfView, width, height)
+        val camera = camera()
         val f = SkyScene.build(snap, camera, options.copy(density = density))
         frame = f
         renderer.draw(canvas, f, backgroundFor(snap, camera))
     }
+
+    private fun camera() = Camera(ViewMode.WINDSHIELD, viewAzimuth, altitude, fieldOfView, width, height)
 
     /** The background layer is the most expensive part; recompute it only when the view or the sky changes. */
     private fun backgroundFor(snap: SkySnapshot, camera: Camera): BackgroundImage? {
@@ -143,13 +148,9 @@ class SkyView(context: Context) : View(context) {
         }
 
         override fun onScroll(e1: MotionEvent?, e2: MotionEvent, dx: Float, dy: Float): Boolean {
-            val ppd = Camera(mode, viewAzimuth, altitude, fieldOfView, width, height).pixelsPerDegree
-            if (mode == ViewMode.SUNROOF) {
-                headingOffset += dx / ppd * 0.5
-            } else {
-                headingOffset += dx / ppd
-                altitude = (altitude - dy / ppd).coerceIn(5.0, 80.0)
-            }
+            val ppd = camera().pixelsPerDegree
+            headingOffset += dx / ppd
+            altitude = (altitude - dy / ppd).coerceIn(5.0, MAX_ALTITUDE)
             headingOffset = ((headingOffset + 540) % 360) - 180
             onViewChanged?.invoke()
             invalidate()
@@ -164,8 +165,7 @@ class SkyView(context: Context) : View(context) {
 
     private val scale = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
-            val range = if (mode == ViewMode.SUNROOF) 90.0..200.0 else 30.0..150.0
-            fieldOfView = (fieldOfView / detector.scaleFactor).coerceIn(range)
+            fieldOfView = (fieldOfView / detector.scaleFactor).coerceIn(30.0, 150.0)
             invalidate()
             return true
         }
@@ -186,5 +186,10 @@ class SkyView(context: Context) : View(context) {
 
         /** Keeps the horizon near the bottom of the screen, as when looking out of the windshield. */
         const val DEFAULT_ALTITUDE = 15.0
+
+        /** Looking up through the sunroof: the sky overhead fills the screen, the horizon out of sight. */
+        const val SUNROOF_ALTITUDE = 70.0
+
+        const val MAX_ALTITUDE = 85.0
     }
 }
