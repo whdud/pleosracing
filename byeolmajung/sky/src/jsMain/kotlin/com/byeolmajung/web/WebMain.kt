@@ -109,6 +109,8 @@ private class WebApp {
                 catalog = SkyCatalog.parse(stars, cons)
                 el<HTMLElement>("loading").hidden = true
                 refreshSky()
+                // Fade the sky in once the first frame is drawn.
+                window.requestAnimationFrame { canvas.classList.add("ready") }
             }
         }
         val img = document.createElement("img") as HTMLImageElement
@@ -302,7 +304,7 @@ private class WebApp {
 
     private fun setFastForward(on: Boolean) {
         fastForward = on
-        text("play", if (on) "❚❚ 멈춤" else "▶ 빠르게")
+        text("play", if (on) "멈춤" else "빠르게")
         el<HTMLElement>("play").classList.toggle("on", on)
     }
 
@@ -361,8 +363,10 @@ private class WebApp {
         val d = localDate(t)
         val hour = d.getUTCHours()
         text("clock", "${if (hour < 12) "오전" else "오후"} ${if (hour % 12 == 0) 12 else hour % 12}:${d.getUTCMinutes().toString().padStart(2, '0')}")
-        text("date", "$day · ${"일월화수목금토"[d.getUTCDay()]}요일")
-        text("place", "${place.name} ▾")
+        val o = place.observer
+        text("date", "${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 ${"일월화수목금토"[d.getUTCDay()]}요일 · $day")
+        text("coords", "${Describe.oneDecimal(o.latitude)}°N  ${Describe.oneDecimal(o.longitude)}°E")
+        text("place", place.name)
         el<HTMLElement>("back-now").hidden = timeOffset == 0.0
     }
 
@@ -429,9 +433,10 @@ private class WebApp {
     private fun showStoryPage() {
         val story = activeStory ?: return
         showPanel(story.title, "${story.season} 별자리 이야기  ·  ${storyPage + 1} / ${story.pages.size}", story.pages[storyPage], storyText = true)
-        listenButton = addPanelButton(if (readingStory) STOP else LISTEN_STORY, kind = "primary") {
+        listenButton = addPanelButton(LISTEN_STORY, kind = "primary") {
             if (readingStory || speaking) stopSpeech() else readStory()
         }
+        if (readingStory) setListen(STOP)
         val row = document.createElement("div") as HTMLElement
         row.className = "row"
         el<HTMLElement>("panel-actions").appendChild(row)
@@ -453,7 +458,7 @@ private class WebApp {
     private fun readStory() {
         val story = activeStory ?: return
         readingStory = true
-        listenButton?.textContent = STOP
+        setListen(STOP)
         speak(story.pages[storyPage]) {
             if (readingStory && activeStory == story && storyPage < story.pages.lastIndex) {
                 storyPage++
@@ -461,7 +466,7 @@ private class WebApp {
                 readStory()
             } else {
                 readingStory = false
-                listenButton?.textContent = LISTEN_STORY
+                setListen(LISTEN_STORY)
             }
         }
     }
@@ -494,7 +499,21 @@ private class WebApp {
         bodyEl.classList.toggle("story", storyText)
         el<HTMLElement>("panel-actions").innerHTML = ""
         listenButton = null
-        el<HTMLElement>("panel").hidden = false
+        val panel = el<HTMLElement>("panel")
+        if (panel.hidden) {
+            panel.hidden = false // the sheet slides in by CSS
+        } else {
+            // Already open: turn the page instead of sliding the whole sheet again.
+            bodyEl.classList.remove("turn")
+            bodyEl.asDynamic().offsetWidth
+            bodyEl.classList.add("turn")
+        }
+    }
+
+    private fun setListen(label: String) {
+        val b = listenButton ?: return
+        b.textContent = label
+        b.classList.toggle("speaking", label == STOP)
     }
 
     private fun closePanel() {
@@ -552,7 +571,7 @@ private class WebApp {
         val korean = voices.firstOrNull { (it.lang as String).startsWith("ko") }
         val sentences = text.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotBlank() }
         speaking = true
-        listenButton?.textContent = STOP
+        setListen(STOP)
         sentences.forEachIndexed { i, sentence ->
             val u: dynamic = js("new SpeechSynthesisUtterance()")
             u.text = sentence
@@ -563,7 +582,7 @@ private class WebApp {
                 u.onend = {
                     if (token == speechToken) {
                         speaking = false
-                        if (!readingStory) listenButton?.textContent = if (activeStory != null) LISTEN_STORY else LISTEN
+                        if (!readingStory) setListen(if (activeStory != null) LISTEN_STORY else LISTEN)
                         onEnd()
                     }
                 }
@@ -579,7 +598,7 @@ private class WebApp {
             speaking = false
             synth?.cancel()
         }
-        listenButton?.textContent = if (activeStory != null) LISTEN_STORY else LISTEN
+        setListen(if (activeStory != null) LISTEN_STORY else LISTEN)
     }
 
     private var toastTimer = 0
@@ -611,8 +630,8 @@ private class WebApp {
         const val HOUR = 3_600_000.0
         const val DAY = 24 * HOUR
 
-        const val LISTEN = "▶ 설명 듣기"
-        const val LISTEN_STORY = "▶ 이야기 듣기"
-        const val STOP = "■ 그만 듣기"
+        const val LISTEN = "설명 듣기"
+        const val LISTEN_STORY = "이야기 듣기"
+        const val STOP = "그만 듣기"
     }
 }

@@ -96,6 +96,8 @@ Pleos 이미지를 받기 전에도 구글의 일반 Android Automotive 에뮬�
 | 은하수 배경 (`milkyway.jpg`) | [NASA SVS Deep Star Maps 2020](https://svs.gsfc.nasa.gov/4851) `milkyway_2020_4k.exr`를 2048×1024로 줄이고 톤 조정. Credit: NASA/Goddard Space Flight Center Scientific Visualization Studio. Gaia DR2: ESA/Gaia/DPAC | NASA 공개 자료 (출처 표기) |
 | 행성 궤도 요소 | JPL "Keplerian Elements for Approximate Positions of the Major Planets" (E. M. Standish) | 공개 자료 |
 
+글꼴 Hahmlet(시계, 제목, 이야기 본문)은 SIL Open Font License 1.1로 배포되며 라이선스 전문은 `app/licenses/Hahmlet-OFL.txt`에 있습니다.
+
 `stars.csv`는 HYG 데이터베이스를 가공한 것이므로 CC BY-SA 4.0을 따릅니다. 별자리 이야기와 앱 코드, 아이콘은 직접 작성했습니다.
 
 데이터를 다시 만들려면 위 출처에서 `hyg_v44.csv`, `constellations.lines.json`, `constellations.json`을 받은 뒤 실행합니다.

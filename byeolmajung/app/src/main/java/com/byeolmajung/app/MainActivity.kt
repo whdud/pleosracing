@@ -2,7 +2,6 @@ package com.byeolmajung.app
 
 import android.app.Activity
 import android.content.Intent
-import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -10,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -64,6 +64,9 @@ class MainActivity : Activity() {
     private var activeStory: Story? = null
     private var storyPage = 0
 
+    /** True while the detail sheet is sliding out. */
+    private var closing = false
+
     /** True while a story is read aloud page after page. */
     private var readingStory = false
 
@@ -73,6 +76,7 @@ class MainActivity : Activity() {
     private lateinit var sky: SkyView
     private lateinit var clock: TextView
     private lateinit var dateLine: TextView
+    private lateinit var coords: TextView
     private lateinit var placeButton: Button
     private lateinit var backToNow: Button
     private lateinit var daylightBanner: LinearLayout
@@ -80,14 +84,15 @@ class MainActivity : Activity() {
     private lateinit var panelTitle: TextView
     private lateinit var panelSubtitle: TextView
     private lateinit var panelBody: TextView
+    private lateinit var bodyScroll: ScrollView
     private lateinit var panelActions: LinearLayout
     private lateinit var drivingOverlay: TextView
-    private lateinit var windshieldButton: Button
-    private lateinit var sunroofButton: Button
-    private lateinit var linesButton: Button
-    private lateinit var nightButton: Button
-    private lateinit var playButton: Button
-    private var listenButton: Button? = null
+    private lateinit var windshieldButton: StripButton
+    private lateinit var sunroofButton: StripButton
+    private lateinit var linesButton: StripButton
+    private lateinit var nightButton: StripButton
+    private lateinit var playButton: StripButton
+    private var listenButton: PaperButton? = null
 
     private lateinit var location: CarLocation
     private lateinit var features: CarFeatures
@@ -126,6 +131,7 @@ class MainActivity : Activity() {
                 catalog = loaded
                 sky.background = SkyBackground(texture)
                 refreshSky()
+                sky.animate().alpha(1f).setDuration(1600).setInterpolator(DecelerateInterpolator()).start()
                 pendingGleo?.let { pendingGleo = null; handleGleo(it) }
             }
         }
@@ -166,7 +172,7 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         when {
-            panel.visibility == View.VISIBLE -> closePanel()
+            panel.visibility == View.VISIBLE && !closing -> closePanel()
             // Pleos CCP policy: Back at the top level hides the app instead of finishing it.
             else -> moveTaskToBack(true)
         }
@@ -200,9 +206,14 @@ class MainActivity : Activity() {
             else -> time.format(DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN))
         }
         clock.text = time.format(DateTimeFormatter.ofPattern("a h:mm", Locale.KOREAN))
-        dateLine.text = "$day · ${time.format(DateTimeFormatter.ofPattern("E요일", Locale.KOREAN))}"
-        placeButton.text = (if (carPosition != null) "내 차 위치" else place.name) + "  ▾"
-        backToNow.visibility = if (timeOffsetMillis != 0L) View.VISIBLE else View.GONE
+        dateLine.text = "${time.format(DateTimeFormatter.ofPattern("M월 d일 E요일", Locale.KOREAN))} · $day"
+        coords.text = String.format(Locale.US, "%.1f°N  %.1f°E", observer.latitude, observer.longitude)
+        placeButton.text = if (carPosition != null) "내 차 위치" else place.name
+        val shifted = timeOffsetMillis != 0L
+        if (shifted != (backToNow.visibility == View.VISIBLE)) {
+            backToNow.visibility = if (shifted) View.VISIBLE else View.GONE
+            if (shifted) rise(backToNow)
+        }
     }
 
     private fun shiftTime(hours: Int) {
@@ -225,8 +236,8 @@ class MainActivity : Activity() {
 
     private fun setFastForward(on: Boolean) {
         fastForward = on
-        playButton.text = if (on) "❚❚  멈춤" else "▶  빠르게"
-        style(playButton, on)
+        playButton.text = if (on) "멈춤" else "빠르게"
+        playButton.on = on
         handler.removeCallbacks(ticker)
         handler.post(ticker)
     }
@@ -239,8 +250,8 @@ class MainActivity : Activity() {
         if (mode == ViewMode.SUNROOF && features.hasSunroofBlind) {
             features.openSunroofBlind { ok -> if (ok) runOnUiThread { toast("선루프 가림막을 열고 있어요") } }
         }
-        style(windshieldButton, mode == ViewMode.WINDSHIELD, segment = true)
-        style(sunroofButton, mode == ViewMode.SUNROOF, segment = true)
+        windshieldButton.on = mode == ViewMode.WINDSHIELD
+        sunroofButton.on = mode == ViewMode.SUNROOF
         updateStatus()
     }
 
@@ -253,7 +264,7 @@ class MainActivity : Activity() {
 
     private fun toggleLines() {
         sky.options = sky.options.copy(showConstellations = !sky.options.showConstellations)
-        style(linesButton, sky.options.showConstellations)
+        linesButton.on = sky.options.showConstellations
     }
 
     /** Stargazing mode: turn every light in the car off so eyes adapt to the dark; turning it off restores them. */
@@ -266,13 +277,15 @@ class MainActivity : Activity() {
         } else {
             features.restoreLights()
         }
-        style(nightButton, nightMode)
+        nightButton.on = nightMode
     }
 
     private fun setRestricted(r: Boolean) {
         restricted = r
         drivingOverlay.visibility = if (r) View.VISIBLE else View.GONE
         if (r) {
+            drivingOverlay.alpha = 0f
+            drivingOverlay.animate().alpha(1f).setDuration(400).start()
             setFastForward(false)
             stopSpeaking()
         }
@@ -291,10 +304,10 @@ class MainActivity : Activity() {
         val position = positionOf(obj)
         val d = Describe.of(obj, cat, position)
         showPanel(d.title, d.subtitle, d.body)
-        listenButton = primaryButton(LISTEN) {
+        listenButton = paperButton(LISTEN) {
             if (speaker.isSpeaking) stopSpeaking() else speaker.speak(Describe.narration(obj, cat, position))
         }.also { panelActions.addView(it, fullWidth()) }
-        d.story?.let { story -> panelActions.addView(secondaryButton("'${story.title}' 이야기 보기") { startStory(story) }, fullWidth()) }
+        d.story?.let { story -> panelActions.addView(outlineButton("'${story.title}' 이야기 보기") { startStory(story) }, fullWidth()) }
     }
 
     private fun positionOf(obj: SkyObject) = sky.snapshot?.let { snap ->
@@ -309,9 +322,7 @@ class MainActivity : Activity() {
         stopSpeaking()
         showPanel("별자리 이야기", "이야기를 고르면 하늘에서 그 별자리를 찾아 드려요", "")
         panelBody.visibility = View.GONE
-        Stories.all.forEach { story ->
-            panelActions.addView(listItem(story.title, "${story.season} 별자리") { startStory(story) }, fullWidth())
-        }
+        Stories.all.forEach { story -> addItem(story.title, "${story.season} 별자리") { startStory(story) } }
     }
 
     private fun startStory(story: Story, readAloud: Boolean = false) {
@@ -340,16 +351,17 @@ class MainActivity : Activity() {
 
     private fun showStoryPage() {
         val story = activeStory ?: return
-        showPanel(story.title, "${story.season} 별자리 이야기  ·  ${storyPage + 1} / ${story.pages.size}", story.pages[storyPage])
-        listenButton = primaryButton(if (readingStory) STOP else LISTEN_STORY) {
+        showPanel(story.title, "${story.season} 별자리 이야기  ·  ${storyPage + 1} / ${story.pages.size}", story.pages[storyPage], storyText = true)
+        listenButton = paperButton(LISTEN_STORY) {
             if (readingStory || speaker.isSpeaking) stopSpeaking() else readStory()
         }.also { panelActions.addView(it, fullWidth()) }
+        if (readingStory) setListen(STOP)
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        if (storyPage > 0) row.addView(secondaryButton("이전") { turnPage(-1) }, weight())
+        if (storyPage > 0) row.addView(outlineButton("이전") { turnPage(-1) }, weight())
         if (storyPage < story.pages.lastIndex) {
-            row.addView(secondaryButton("다음") { turnPage(1) }, weight())
+            row.addView(outlineButton("다음") { turnPage(1) }, weight())
         } else {
-            row.addView(secondaryButton("다른 이야기") { showStoryList() }, weight())
+            row.addView(outlineButton("다른 이야기") { showStoryList() }, weight())
         }
         panelActions.addView(row, fullWidth())
     }
@@ -364,7 +376,7 @@ class MainActivity : Activity() {
     private fun readStory() {
         val story = activeStory ?: return
         readingStory = true
-        listenButton?.text = STOP
+        setListen(STOP)
         speaker.speak(story.pages[storyPage])
     }
 
@@ -377,11 +389,19 @@ class MainActivity : Activity() {
             return
         }
         if (!speaking) readingStory = false
-        listenButton?.text = when {
-            speaking || readingStory -> STOP
-            activeStory != null -> LISTEN_STORY
-            else -> LISTEN
-        }
+        setListen(
+            when {
+                speaking || readingStory -> STOP
+                activeStory != null -> LISTEN_STORY
+                else -> LISTEN
+            },
+        )
+    }
+
+    private fun setListen(label: String) {
+        val b = listenButton ?: return
+        b.text = label
+        b.speaking = label == STOP
     }
 
     private fun stopSpeaking() {
@@ -389,20 +409,41 @@ class MainActivity : Activity() {
         if (::speaker.isInitialized) speaker.stop()
     }
 
-    private fun showPanel(title: String, subtitle: String, body: String) {
+    private fun showPanel(title: String, subtitle: String, body: String, storyText: Boolean = false) {
         panelTitle.text = title
         panelSubtitle.text = subtitle
         panelSubtitle.visibility = if (subtitle.isEmpty()) View.GONE else View.VISIBLE
         panelBody.text = body
         panelBody.visibility = View.VISIBLE
+        // Lists (stories, places) have no body; let them sit right under the title.
+        bodyScroll.visibility = if (body.isEmpty()) View.GONE else View.VISIBLE
+        panelBody.typeface = if (storyText) serif else Typeface.DEFAULT
+        panelBody.textSize = if (storyText) 22f else 19f
         panelActions.removeAllViews()
         listenButton = null
+        if (panel.visibility == View.VISIBLE && !closing) {
+            // Already open: turn the page instead of sliding the sheet in again.
+            panelBody.alpha = 0f
+            panelBody.translationX = dp(14).toFloat()
+            panelBody.animate().alpha(1f).translationX(0f).setDuration(450).setInterpolator(DecelerateInterpolator(2f)).start()
+            return
+        }
+        panel.animate().cancel()
+        closing = false
         panel.visibility = View.VISIBLE
+        panel.alpha = 0f
+        panel.translationX = dp(48).toFloat()
+        panel.animate().alpha(1f).translationX(0f).setDuration(480).setInterpolator(DecelerateInterpolator(2f)).start()
+        for (i in 0 until panel.childCount) rise(panel.getChildAt(i), delay = 60L * i)
     }
 
     private fun closePanel() {
         stopSpeaking()
-        panel.visibility = View.GONE
+        if (panel.visibility == View.VISIBLE && !closing) {
+            closing = true
+            panel.animate().alpha(0f).translationX(dp(32).toFloat()).setDuration(220)
+                .withEndAction { closing = false; panel.visibility = View.GONE }.start()
+        }
         activeStory = null
         selected = null
         listenButton = null
@@ -419,14 +460,14 @@ class MainActivity : Activity() {
                 p.skyQuality < 0.5 -> "꽤 어두운 하늘"
                 else -> "도시의 밝은 하늘"
             }
-            panelActions.addView(listItem(p.name, darkness) {
+            addItem(p.name, darkness) {
                 place = p
                 carPosition = null
                 sky.carHeading = p.heading
                 sky.options = sky.options.copy(skyQuality = p.skyQuality)
                 closePanel()
                 refreshSky()
-            }, fullWidth())
+            }
         }
     }
 
@@ -469,310 +510,291 @@ class MainActivity : Activity() {
         positionOf(obj)?.takeIf { it.alt > 0 }?.let { sky.lookAt(it) }
     }
 
-    // --- Layout ---
+    // --- Layout: a star atlas laid over the windshield ---
+    // Type sits on the sky like chart labels; one ruled control strip runs along the bottom;
+    // details open as a ruled sheet on the right.
+
+    private val serif: Typeface by lazy { resources.getFont(R.font.hahmlet_light) }
+    private val serifThin: Typeface by lazy { resources.getFont(R.font.hahmlet_extralight) }
 
     private fun buildLayout(): View {
-        val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
+        val root = FrameLayout(this).apply { setBackgroundColor(SKY) }
 
         sky = SkyView(this).apply {
             onSelect = ::onSelect
             onViewChanged = ::updateStatus
+            alpha = 0f // fades in once the catalog is drawn
         }
         root.addView(sky, FrameLayout.LayoutParams(-1, -1))
 
-        // Top left: time and place.
-        val timeCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(16), dp(24), dp(16))
-            background = glass()
-        }
+        // Shade behind the corner text and the strip so they read over the Milky Way.
+        root.addView(View(this).apply {
+            background = GradientDrawable().apply {
+                gradientType = GradientDrawable.RADIAL_GRADIENT
+                colors = intArrayOf(0xC004060C.toInt(), 0x0004060C)
+                gradientRadius = dp(400).toFloat()
+                setGradientCenter(0f, 0f)
+            }
+        }, FrameLayout.LayoutParams(dp(820), dp(460)))
+        root.addView(View(this).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(0xEB04060C.toInt(), 0x0004060C))
+        }, FrameLayout.LayoutParams(-1, dp(190), Gravity.BOTTOM))
+
+        // Top left: time and place, set like a chart's title block.
+        val title = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         clock = TextView(this).apply {
-            textSize = 40f
-            typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
-            setTextColor(INK)
+            textSize = 64f
+            typeface = serifThin
+            setTextColor(PAPER)
+            isSingleLine = true
         }
         dateLine = TextView(this).apply {
-            textSize = 17f
-            setTextColor(INK_DIM)
+            textSize = 16f
+            setTextColor(PAPER_DIM)
+        }
+        coords = TextView(this).apply {
+            textSize = 13f
+            typeface = Typeface.MONOSPACE
+            letterSpacing = 0.06f
+            setTextColor(PAPER_DIM)
         }
         placeButton = Button(this).apply {
-            textSize = 19f
+            textSize = 17f
             isAllCaps = false
-            setTextColor(GOLD)
-            background = null
+            setTextColor(PAPER)
+            background = rule(bottom = true)
+            stateListAnimator = null
             minHeight = dp(48)
             minimumHeight = dp(48)
+            minWidth = 0
+            minimumWidth = 0
             setPadding(0, 0, 0, 0)
-            gravity = Gravity.START or Gravity.CENTER_VERTICAL
             setOnClickListener { choosePlace() }
         }
         backToNow = Button(this).apply {
             text = "시간 이동 중 · 지금으로"
-            textSize = 16f
+            textSize = 15f
             isAllCaps = false
-            setTextColor(BG)
-            background = pill(GOLD)
-            minHeight = dp(48)
-            minimumHeight = dp(48)
-            setPadding(dp(18), 0, dp(18), 0)
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(ON_PAPER)
+            setBackgroundColor(PAPER)
+            stateListAnimator = null
+            minHeight = dp(44)
+            minimumHeight = dp(44)
+            setPadding(dp(16), 0, dp(16), 0)
             visibility = View.GONE
             setOnClickListener { backToNow() }
         }
-        timeCard.addView(clock)
-        timeCard.addView(dateLine)
-        timeCard.addView(placeButton, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4) })
-        timeCard.addView(backToNow, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(12) })
-        root.addView(timeCard, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { setMargins(dp(24), dp(20), 0, 0) })
-
-        // Top right: view mode and toggles.
-        val controls = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val segment = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(6), dp(6), dp(6), dp(6))
-            background = glass(radius = 40)
-        }
-        windshieldButton = chip("앞유리") { setMode(ViewMode.WINDSHIELD) }
-        sunroofButton = chip("선루프") { setMode(ViewMode.SUNROOF) }
-        segment.addView(windshieldButton)
-        segment.addView(sunroofButton)
-        style(windshieldButton, true, segment = true)
-        style(sunroofButton, false, segment = true)
-        controls.addView(segment)
-        linesButton = chip("별자리 선") { toggleLines() }
-        nightButton = chip("관측 모드") { toggleNightMode() }
-        style(linesButton, false)
-        style(nightButton, false)
-        controls.addView(linesButton, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(12) })
-        controls.addView(nightButton, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(12) })
-        root.addView(controls, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.END).apply { setMargins(0, dp(20), dp(24), 0) })
+        title.addView(clock, LinearLayout.LayoutParams(-1, -2))
+        title.addView(dateLine, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(12) })
+        title.addView(coords)
+        title.addView(placeButton, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2) })
+        title.addView(backToNow, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(14) })
+        root.addView(title, FrameLayout.LayoutParams(dp(460), -2, Gravity.TOP or Gravity.START).apply { setMargins(dp(36), dp(28), 0, 0) })
 
         daylightBanner = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = glass(radius = 40)
-            setPadding(dp(28), dp(8), dp(8), dp(8))
+            background = GradientDrawable().apply { setColor(SHEET); setStroke(dp(1), PAPER_FAINT) }
+            setPadding(dp(24), dp(8), dp(8), dp(8))
             addView(TextView(context).apply {
                 text = "지금은 하늘이 밝아서 별이 잘 안 보여요"
-                textSize = 18f
-                setTextColor(INK)
-            })
-            addView(Button(context).apply {
-                text = "오늘 밤 9시 하늘 보기"
                 textSize = 17f
-                isAllCaps = false
-                setTextColor(BG)
-                background = pill(GOLD)
-                minHeight = dp(56)
-                setPadding(dp(22), 0, dp(22), 0)
-                setOnClickListener { jumpToTonight() }
+                setTextColor(PAPER)
+            })
+            addView(paperButton("오늘 밤 9시 하늘") { jumpToTonight() }.apply {
+                textSize = 16f
+                minHeight = dp(52)
+                setPadding(dp(20), 0, dp(20), 0)
             }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(20) })
             visibility = View.GONE
         }
-        root.addView(daylightBanner, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(110) })
+        root.addView(daylightBanner, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(32) })
 
-        // Bottom left: stories.
-        val storiesButton = Button(this).apply {
-            text = "✦  별자리 이야기"
-            textSize = 20f
-            isAllCaps = false
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(BG)
-            background = pill(GOLD)
-            minHeight = dp(72)
-            setPadding(dp(32), 0, dp(32), 0)
-            setOnClickListener { showStoryList() }
-        }
-        root.addView(storiesButton, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(24), 0, 0, dp(24)) })
-
-        // Bottom centre: time dock.
-        val dock = LinearLayout(this).apply {
+        // Bottom: the control strip.
+        val strip = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(10), dp(8), dp(10), dp(8))
-            background = glass(radius = 44)
+            background = rule(bottom = false)
+            setPadding(dp(24), 0, dp(24), 0)
         }
-        dock.addView(chip("−1시간") { shiftTime(-1) }.also { style(it, false, segment = true) })
-        dock.addView(chip("+1시간") { shiftTime(1) }.also { style(it, false, segment = true) })
-        playButton = chip("▶  빠르게") { setFastForward(!fastForward) }
-        style(playButton, false, segment = true)
-        dock.addView(playButton, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(6) })
-        root.addView(dock, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(24) })
+        strip.addView(stripButton("별자리 이야기") { showStoryList() }.apply {
+            typeface = serif
+            textSize = 22f
+            setTextColor(PAPER)
+        })
+        strip.addView(divider())
+        strip.addView(stripButton("−1시간") { shiftTime(-1) })
+        strip.addView(stripButton("+1시간") { shiftTime(1) })
+        playButton = stripButton("빠르게") { setFastForward(!fastForward) }
+        strip.addView(playButton)
+        strip.addView(divider())
+        windshieldButton = stripButton("앞유리") { setMode(ViewMode.WINDSHIELD) }.apply { on = true }
+        sunroofButton = stripButton("선루프") { setMode(ViewMode.SUNROOF) }
+        linesButton = stripButton("별자리 선") { toggleLines() }
+        nightButton = stripButton("관측 모드") { toggleNightMode() }
+        listOf(windshieldButton, sunroofButton, linesButton, nightButton).forEach(strip::addView)
+        root.addView(strip, FrameLayout.LayoutParams(-1, dp(STRIP_HEIGHT), Gravity.BOTTOM))
 
-        // Right: detail panel.
+        // Right: the detail sheet.
         panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(32), dp(24), dp(24), dp(24))
-            background = glass(fill = PANEL, radius = 28)
+            setPadding(dp(40), dp(32), dp(28), dp(28))
+            background = android.graphics.drawable.LayerDrawable(arrayOf(
+                GradientDrawable().apply { setColor(SHEET) },
+                GradientDrawable().apply { setStroke(dp(1), PAPER_FAINT) },
+            )).apply { setLayerInset(1, 0, -dp(2), -dp(2), -dp(2)) }
             visibility = View.GONE
             isClickable = true
+        }
+        panelSubtitle = TextView(this).apply {
+            textSize = 15f
+            letterSpacing = 0.02f
+            setTextColor(PAPER_DIM)
         }
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.TOP
         }
         panelTitle = TextView(this).apply {
-            textSize = 30f
-            typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
-            setTextColor(INK)
+            textSize = 38f
+            typeface = serif
+            setTextColor(PAPER)
         }
-        header.addView(panelTitle, LinearLayout.LayoutParams(0, -2, 1f).apply { topMargin = dp(8) })
+        header.addView(panelTitle, LinearLayout.LayoutParams(0, -2, 1f).apply { topMargin = dp(4) })
         header.addView(Button(this).apply {
-            text = "✕"
-            textSize = 20f
-            setTextColor(INK_DIM)
-            background = pill(0x14FFFFFF)
-            minWidth = dp(56)
-            minimumWidth = dp(56)
-            minHeight = dp(56)
-            minimumHeight = dp(56)
+            text = "×"
+            textSize = 30f
+            setTextColor(PAPER_DIM)
+            background = null
+            stateListAnimator = null
             setPadding(0, 0, 0, 0)
             contentDescription = "닫기"
             setOnClickListener { closePanel() }
         }, LinearLayout.LayoutParams(dp(56), dp(56)))
-        panelSubtitle = TextView(this).apply {
-            textSize = 16f
-            setTextColor(GOLD)
-            setPadding(0, dp(6), 0, dp(16))
-        }
         panelBody = TextView(this).apply {
-            textSize = 20f
-            setTextColor(INK)
-            setLineSpacing(0f, 1.45f)
+            setTextColor(PAPER)
+            setLineSpacing(0f, 1.6f)
         }
         panelActions = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(16), 0, 0)
         }
-        panel.addView(header)
         panel.addView(panelSubtitle)
-        panel.addView(ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(panelBody) }, LinearLayout.LayoutParams(-1, 0, 1f))
+        panel.addView(header, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+        panel.addView(View(this).apply { setBackgroundColor(PAPER_FAINT) }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(0, dp(16), 0, dp(16)) })
+        bodyScroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(panelBody) }
+        panel.addView(bodyScroll, LinearLayout.LayoutParams(-1, 0, 1f))
         panel.addView(panelActions)
-        root.addView(panel, FrameLayout.LayoutParams(dp(540), -1, Gravity.END).apply { setMargins(0, dp(100), dp(24), dp(24)) })
+        root.addView(panel, FrameLayout.LayoutParams(dp(560), -1, Gravity.END).apply { bottomMargin = dp(STRIP_HEIGHT) })
 
         drivingOverlay = TextView(this).apply {
-            text = "운전 중에는 별을 볼 수 없어요.\n안전한 곳에 차를 세우면 보던 하늘을 이어서 보여 드릴게요."
-            textSize = 26f
+            text = "운전 중에는 별을 볼 수 없어요.\n차를 세우면 보던 하늘을 이어서 보여 드릴게요."
+            textSize = 32f
+            typeface = serif
             gravity = Gravity.CENTER
-            setTextColor(INK)
-            setLineSpacing(0f, 1.4f)
-            setBackgroundColor(0xF2050810.toInt())
+            setTextColor(PAPER)
+            setLineSpacing(0f, 1.45f)
+            setBackgroundColor(0xF504060C.toInt())
             visibility = View.GONE
             isClickable = true
         }
         root.addView(drivingOverlay, FrameLayout.LayoutParams(-1, -1))
+
+        // Opening sequence: the title block and the strip rise in while the sky fades up.
+        rise(title, delay = 300)
+        rise(strip, delay = 450)
         return root
     }
 
-    /** A rounded control for the top bar and time dock; [style] sets how it looks when on or off. */
-    private fun chip(label: String, onClick: () -> Unit) = Button(this).apply {
+    private fun stripButton(label: String, onClick: () -> Unit) = StripButton(this).apply {
         text = label
         textSize = 18f
-        isAllCaps = false
-        minHeight = dp(64)
-        minimumHeight = dp(64)
-        minWidth = dp(112)
-        minimumWidth = dp(112)
+        minHeight = dp(STRIP_HEIGHT)
+        minimumHeight = dp(STRIP_HEIGHT)
+        minWidth = 0
+        minimumWidth = 0
         setPadding(dp(22), 0, dp(22), 0)
-        stateListAnimator = null
         setOnClickListener { onClick() }
     }
 
-    /**
-     * Toggles are glass pills that turn gold when on; segment items sit inside a glass group and are
-     * transparent when off.
-     */
-    private fun style(button: Button, on: Boolean, segment: Boolean = false) {
-        button.setTextColor(if (on) BG else INK)
-        button.setTypeface(null, if (on) Typeface.BOLD else Typeface.NORMAL)
-        button.background = when {
-            on -> pill(GOLD)
-            segment -> pill(Color.TRANSPARENT)
-            else -> glass(radius = 40)
-        }
+    private fun divider() = View(this).apply { setBackgroundColor(PAPER_FAINT) }.also {
+        it.layoutParams = LinearLayout.LayoutParams(dp(1), dp(32)).apply { setMargins(dp(14), 0, dp(14), 0) }
     }
 
-    private fun primaryButton(label: String, onClick: () -> Unit) = Button(this).apply {
+    private fun paperButton(label: String, onClick: () -> Unit) = PaperButton(this).apply {
         text = label
-        textSize = 20f
-        isAllCaps = false
+        textSize = 19f
         setTypeface(typeface, Typeface.BOLD)
-        setTextColor(BG)
-        background = pill(GOLD)
-        minHeight = dp(72)
-        stateListAnimator = null
+        minHeight = dp(68)
         setOnClickListener { onClick() }
     }
 
-    private fun secondaryButton(label: String, onClick: () -> Unit) = Button(this).apply {
+    private fun outlineButton(label: String, onClick: () -> Unit) = Button(this).apply {
         text = label
-        textSize = 18f
+        textSize = 17f
         isAllCaps = false
-        setTextColor(INK)
-        background = GradientDrawable().apply {
-            cornerRadius = dp(36).toFloat()
-            setStroke(dp(1), 0x55FFFFFF)
-        }
-        minHeight = dp(64)
+        setTextColor(PAPER)
+        background = GradientDrawable().apply { setStroke(dp(1), PAPER_FAINT) }
+        minHeight = dp(60)
         stateListAnimator = null
         setOnClickListener { onClick() }
     }
 
-    /** A two-line choice in the panel, such as a story or a place. */
-    private fun listItem(title: String, detail: String, onClick: () -> Unit) = Button(this).apply {
-        text = android.text.SpannableStringBuilder(title).apply {
-            append("\n")
-            val start = length
-            append(detail)
-            setSpan(android.text.style.ForegroundColorSpan(INK_DIM), start, length, 0)
-            setSpan(android.text.style.RelativeSizeSpan(0.8f), start, length, 0)
-        }
-        textSize = 20f
-        isAllCaps = false
-        gravity = Gravity.START or Gravity.CENTER_VERTICAL
-        setTextColor(INK)
-        background = GradientDrawable().apply {
-            cornerRadius = dp(18).toFloat()
-            setColor(0x0FFFFFFF)
-            setStroke(dp(1), 0x1FFFFFFF)
-        }
-        minHeight = dp(80)
-        setPadding(dp(24), dp(12), dp(24), dp(12))
-        stateListAnimator = null
-        setOnClickListener { onClick() }
+    /** A two-line choice on the sheet, such as a story or a place, separated from the next by a rule. */
+    private fun addItem(title: String, detail: String, onClick: () -> Unit) {
+        panelActions.addView(Button(this).apply {
+            text = android.text.SpannableStringBuilder(title).apply {
+                setSpan(android.text.style.TypefaceSpan(serif), 0, length, 0)
+                setSpan(android.text.style.RelativeSizeSpan(1.25f), 0, length, 0)
+                append("\n")
+                val start = length
+                append(detail)
+                setSpan(android.text.style.ForegroundColorSpan(PAPER_DIM), start, length, 0)
+                setSpan(android.text.style.RelativeSizeSpan(0.75f), start, length, 0)
+            }
+            textSize = 20f
+            isAllCaps = false
+            gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            setTextColor(PAPER)
+            background = null
+            stateListAnimator = null
+            minHeight = dp(88)
+            setPadding(0, dp(12), 0, dp(12))
+            setOnClickListener { onClick() }
+        }, LinearLayout.LayoutParams(-1, -2))
+        panelActions.addView(View(this).apply { setBackgroundColor(PAPER_FAINT) }, LinearLayout.LayoutParams(-1, dp(1)))
     }
 
-    private fun fullWidth() = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(6), 0, dp(6)) }
+    /** A hairline along one edge: the bottom (an underline) or the top (the strip's upper rule). */
+    private fun rule(bottom: Boolean) = android.graphics.drawable.LayerDrawable(arrayOf(
+        GradientDrawable().apply { setStroke(dp(1), PAPER_FAINT) },
+    )).apply {
+        if (bottom) setLayerInset(0, -dp(2), -dp(2), -dp(2), 0) else setLayerInset(0, -dp(2), 0, -dp(2), -dp(2))
+    }
+
+    /** Fades [view] up from slightly below. */
+    private fun rise(view: View, delay: Long = 0) {
+        view.alpha = 0f
+        view.translationY = dp(10).toFloat()
+        view.animate().alpha(1f).translationY(0f).setStartDelay(delay).setDuration(600)
+            .setInterpolator(DecelerateInterpolator(2f)).start()
+    }
+
+    private fun fullWidth() = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(5), 0, dp(5)) }
 
     private fun weight() = LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(4), 0, dp(4), 0) }
-
-    private fun glass(fill: Int = GLASS, radius: Int = 24) = GradientDrawable().apply {
-        setColor(fill)
-        cornerRadius = dp(radius).toFloat()
-        setStroke(dp(1), 0x1FFFFFFF)
-    }
-
-    private fun pill(color: Int) = GradientDrawable().apply {
-        setColor(color)
-        cornerRadius = dp(40).toFloat()
-    }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
 
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
     companion object {
-        private val GOLD = 0xFFF2C46D.toInt()
-        private val INK = 0xFFE6ECF5.toInt()
-        private val INK_DIM = 0xFF8E9BB3.toInt()
-        private val BG = 0xFF0A0E1A.toInt()
-        private val GLASS = 0xB30C1222.toInt()
-        private val PANEL = 0xEB0C1222.toInt()
+        private val SKY = 0xFF04060C.toInt()
+        private const val STRIP_HEIGHT = 76
 
-        private const val LISTEN = "▶  설명 듣기"
-        private const val LISTEN_STORY = "▶  이야기 듣기"
-        private const val STOP = "■  그만 듣기"
+        private const val LISTEN = "설명 듣기"
+        private const val LISTEN_STORY = "이야기 듣기"
+        private const val STOP = "그만 듣기"
     }
 }

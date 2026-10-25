@@ -3,28 +3,26 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@200;300;500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
 <style>
-  /* One screen like an in-car display: the sky fills it and glass controls float over it.
-     Time card top-left, view controls top-right, stories and the time dock along the bottom,
-     details in a side panel (bottom sheet on phones). */
+  /* A star atlas laid over the windshield: the sky is the page; type sits on it directly like chart labels,
+     one ruled control strip runs along the bottom, details open as a ruled sheet on the right.
+     One look by design (it is a night sky), so there is no light theme. */
   :root {
     color-scheme: dark;
-    --night: #05070d;
-    --glass: rgba(12, 18, 34, 0.72);
-    --glass-strong: rgba(12, 18, 34, 0.92);
-    --glass-line: rgba(255, 255, 255, 0.12);
-    --ink: #e6ecf5;
-    --ink-dim: #8e9bb3;
-    --gold: #f2c46d;
-    --gold-ink: #0a0e1a;
-    --font-ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
-    --font-story: "Gowun Batang", "AppleMyungjo", "Batang", serif;
-    --edge-l: max(24px, env(safe-area-inset-left, 0px));
-    --edge-r: max(24px, env(safe-area-inset-right, 0px));
-    --edge-t: max(20px, env(safe-area-inset-top, 0px));
-    --edge-b: max(20px, env(safe-area-inset-bottom, 0px));
-    --tap: 56px;
+    --sky: #04060c;
+    --paper: #ece5d3;          /* chart-paper ivory: text, rules, the one filled control */
+    --paper-dim: #a49e90;
+    --paper-faint: rgba(236, 229, 211, 0.22);
+    --sheet: rgba(5, 8, 16, 0.9);
+    --on-paper: #0b0f1a;
+    --display: "Hahmlet", "Nanum Myeongjo", "AppleMyungjo", serif;
+    --body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --gl: max(16px, env(safe-area-inset-left, 0px));
+    --gr: max(16px, env(safe-area-inset-right, 0px));
+    --gb: env(safe-area-inset-bottom, 0px);
+    --ease: cubic-bezier(.2, .7, .2, 1);
   }
   [hidden] { display: none !important; }
   * { box-sizing: border-box; }
@@ -32,295 +30,292 @@
   body {
     margin: 0;
     overflow: hidden;
-    background: var(--night);
-    color: var(--ink);
-    font: 16px/1.5 var(--font-ui);
+    background: var(--sky);
+    color: var(--paper);
+    font: 16px/1.55 var(--body);
+    padding-left: var(--gl);
+    padding-right: var(--gr);
     -webkit-tap-highlight-color: transparent;
   }
-  button { font: inherit; color: inherit; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  button:focus-visible { outline: 1px solid var(--paper); outline-offset: 4px; }
+
   #sky {
     position: fixed; inset: 0; width: 100%; height: 100%;
     display: block; touch-action: none; cursor: grab;
+    opacity: 0; transition: opacity 1.6s var(--ease);
   }
+  #sky.ready { opacity: 1; }
   #sky:active { cursor: grabbing; }
+  #loading {
+    position: fixed; inset: 0; display: grid; place-content: center;
+    font: 300 20px var(--display); color: var(--paper-dim); letter-spacing: .08em;
+    animation: breathe 2.4s ease-in-out infinite;
+  }
+  @keyframes breathe { 50% { opacity: .35; } }
 
-  .glass {
-    background: var(--glass);
-    border: 1px solid var(--glass-line);
-    backdrop-filter: blur(14px) saturate(1.2);
-    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  /* Soft shade behind the corner text so it reads over the Milky Way. */
+  .shade {
+    position: fixed; pointer-events: none; z-index: 0;
+    inset: 0 auto auto 0; width: 520px; height: 260px;
+    background: radial-gradient(ellipse at 0 0, rgba(4, 6, 12, .75), transparent 70%);
+  }
+  .shade.bottom {
+    inset: auto 0 0 0; width: auto; height: 160px;
+    background: linear-gradient(to top, rgba(4, 6, 12, .92), transparent);
   }
 
-  /* Pills: toggles are glass and turn gold when on; segment items are clear when off. */
-  .pill {
-    flex: none;
-    min-height: var(--tap);
-    padding: 0 22px;
-    border: 1px solid var(--glass-line);
-    border-radius: 999px;
-    background: var(--glass);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    font-size: 16px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background .15s, color .15s;
+  /* Time and place, set like a chart's title block. */
+  .when {
+    position: fixed; z-index: 1;
+    top: calc(22px + env(safe-area-inset-top, 0px));
+    left: calc(var(--gl) + 12px);
+    display: grid; gap: 2px; justify-items: start;
+    animation: rise .9s var(--ease) both .3s;
   }
-  .pill:hover { background: rgba(30, 40, 66, 0.85); }
-  .pill.on, .seg button.on { background: var(--gold); color: var(--gold-ink); font-weight: 700; border-color: transparent; }
-  .pill:focus-visible, .seg button:focus-visible, .primary:focus-visible, .ghost:focus-visible, .item:focus-visible {
-    outline: 2px solid var(--gold); outline-offset: 2px;
+  #clock {
+    font: 200 56px/1 var(--display);
+    letter-spacing: -.01em;
+    font-variant-numeric: tabular-nums;
   }
-  .primary {
-    min-height: 64px;
-    padding: 0 28px;
-    border: 0;
-    border-radius: 999px;
-    background: var(--gold);
-    color: var(--gold-ink);
-    font-weight: 700;
-    font-size: 18px;
-    cursor: pointer;
-    box-shadow: 0 6px 24px rgba(242, 196, 109, 0.25);
-  }
-  .primary:hover { filter: brightness(1.06); }
-  .ghost {
-    min-height: var(--tap);
-    padding: 0 20px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 999px;
-    background: transparent;
-    font-size: 16px;
-    cursor: pointer;
-  }
-  .ghost:hover { background: rgba(255, 255, 255, 0.06); }
-
-  /* Time card */
-  .timecard {
-    position: fixed;
-    top: var(--edge-t);
-    left: var(--edge-l);
-    padding: 14px 22px 16px;
-    border-radius: 22px;
-    max-width: calc(100% - var(--edge-l) - var(--edge-r));
-  }
-  #clock { font-size: 40px; font-weight: 300; line-height: 1.1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
-  #date { color: var(--ink-dim); font-size: 14px; }
+  #date { font-size: 14px; color: var(--paper-dim); margin-top: 10px; }
+  #coords { font: 400 12px var(--mono); color: var(--paper-dim); letter-spacing: .06em; }
   #place {
-    display: block;
-    margin: 4px 0 0;
-    padding: 4px 0;
-    border: 0;
-    background: none;
-    color: var(--gold);
-    font-size: 17px;
-    font-weight: 500;
-    cursor: pointer;
-    text-align: left;
+    font-size: 15px; color: var(--paper);
+    border-bottom: 1px solid var(--paper-faint);
+    padding: 4px 0 2px; margin-top: 2px;
+    transition: border-color .2s;
   }
+  #place:hover { border-color: var(--paper); }
   #back-now {
-    margin-top: 10px;
-    min-height: 40px;
-    padding: 0 16px;
-    border: 0;
-    border-radius: 999px;
-    background: var(--gold);
-    color: var(--gold-ink);
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  /* Web demo only: try the driving lock. Kept small and out of the way. */
-  .demo-drive {
-    position: fixed; right: var(--edge-r); bottom: calc(var(--edge-b) + 18px);
-    padding: 8px 0; border: 0; background: none; color: var(--ink-dim);
-    font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+    margin-top: 12px; padding: 6px 12px;
+    font-size: 13px; font-weight: 600;
+    color: var(--on-paper); background: var(--paper);
+    animation: rise .4s var(--ease) both;
   }
 
-  /* View controls */
-  .controls {
-    position: fixed;
-    top: var(--edge-t);
-    right: var(--edge-r);
-    display: flex;
-    gap: 10px;
-    align-items: center;
+  /* The control strip. */
+  .strip {
+    position: fixed; z-index: 2;
+    left: 0; right: 0; bottom: 0;
+    padding: 0 calc(var(--gr) + 8px) calc(var(--gb) + 10px) calc(var(--gl) + 8px);
+    display: flex; align-items: stretch; flex-wrap: wrap; row-gap: 4px;
+    border-top: 1px solid var(--paper-faint);
+    animation: rise .9s var(--ease) both .45s;
   }
-  .seg { display: flex; padding: 5px; border-radius: 999px; }
-  .seg button {
-    min-height: 46px;
-    padding: 0 20px;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    cursor: pointer;
-    font-size: 16px;
+  .group { display: flex; align-items: stretch; }
+  .group + .group { border-left: 1px solid var(--paper-faint); margin-left: 8px; padding-left: 8px; }
+  .group.end { margin-left: auto; border-left: 0; }
+  .ctl {
+    position: relative;
+    min-height: 60px; padding: 0 16px;
+    font-size: 15px; color: var(--paper-dim);
+    white-space: nowrap;
+    transition: color .2s;
   }
+  .ctl:hover { color: var(--paper); }
+  /* On state: full-strength text and a rule drawn across the top edge of the strip. */
+  .ctl::after {
+    content: ""; position: absolute; left: 16px; right: 16px; top: -1px; height: 2px;
+    background: var(--paper);
+    transform: scaleX(0); transition: transform .35s var(--ease);
+  }
+  .ctl.on { color: var(--paper); }
+  .ctl.on::after { transform: scaleX(1); }
+  .ctl.lead { font: 500 19px var(--display); color: var(--paper); padding-left: 4px; }
+  .ctl .num { font-family: var(--mono); font-size: 14px; }
+  .demo { font-size: 12px; color: var(--paper-dim); text-decoration: underline; text-underline-offset: 3px; padding: 0 4px; align-self: center; }
 
   #daylight {
-    position: fixed;
-    top: calc(var(--edge-t) + 96px);
-    left: 50%;
+    position: fixed; z-index: 2; left: 50%; top: calc(30px + env(safe-area-inset-top, 0px));
     transform: translateX(-50%);
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    padding: 8px 8px 8px 24px;
-    border-radius: 999px;
-    max-width: calc(100% - 32px);
+    display: flex; align-items: center; gap: 18px;
+    padding: 10px 10px 10px 18px;
+    background: var(--sheet); border: 1px solid var(--paper-faint);
+    max-width: calc(100% - var(--gl) - var(--gr));
+    animation: rise .6s var(--ease) both;
   }
-  #daylight .primary { min-height: 48px; font-size: 15px; padding: 0 20px; box-shadow: none; }
+  #daylight .primary { min-height: 40px; padding: 0 16px; font-size: 14px; }
 
-  /* Bottom row */
-  #stories { position: fixed; left: var(--edge-l); bottom: var(--edge-b); }
-  .dock {
-    position: fixed;
-    left: 50%;
-    bottom: var(--edge-b);
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 6px;
-    border-radius: 999px;
-  }
-  .dock .step {
-    min-height: 52px; min-width: 52px; padding: 0 16px;
-    border: 0; border-radius: 999px; background: transparent; cursor: pointer; font-size: 15px;
-  }
-  .dock .step:hover { background: rgba(255, 255, 255, 0.06); }
-  .dock .step.on { background: var(--gold); color: var(--gold-ink); font-weight: 700; }
-
-  /* Detail panel */
+  /* Detail sheet. */
   #panel {
-    position: fixed;
-    top: calc(var(--edge-t) + 84px);
-    right: var(--edge-r);
-    bottom: calc(var(--edge-b) + 88px);
-    width: min(440px, calc(100% - var(--edge-l) - var(--edge-r)));
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 24px 24px 20px 28px;
-    border-radius: 26px;
-    background: var(--glass-strong);
+    position: fixed; z-index: 3;
+    top: 0; right: 0;
+    bottom: calc(71px + var(--gb));
+    width: min(440px, 100%);
+    padding: calc(28px + env(safe-area-inset-top, 0px)) calc(var(--gr) + 12px) 22px 32px;
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--sheet);
+    border-left: 1px solid var(--paper-faint);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    animation: sheet-in .5s var(--ease) both;
   }
-  .panel-head { display: flex; gap: 12px; align-items: flex-start; }
+  @keyframes sheet-in { from { transform: translateX(40px); opacity: 0; } }
+  @keyframes rise { from { transform: translateY(10px); opacity: 0; } }
+  #panel > * { animation: rise .55s var(--ease) both; }
+  #panel > :nth-child(2) { animation-delay: .06s; }
+  #panel > :nth-child(3) { animation-delay: .12s; }
+  #panel > :nth-child(4) { animation-delay: .18s; }
+  #panel-subtitle {
+    order: -1; margin: 0;
+    font-size: 13px; line-height: 1.6; color: var(--paper-dim); letter-spacing: .02em;
+  }
+  .panel-head { display: flex; align-items: flex-start; gap: 16px; }
   #panel-title {
-    flex: 1;
-    margin: 6px 0 0;
-    font: 700 28px/1.25 var(--font-story);
-    text-wrap: balance;
+    flex: 1; margin: 0;
+    font: 300 34px/1.2 var(--display);
+    letter-spacing: -.01em; text-wrap: balance;
   }
   #panel-close {
-    flex: none; width: 48px; height: 48px; border: 0; border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08); color: var(--ink-dim); cursor: pointer; font-size: 18px;
+    flex: none; width: 44px; height: 44px; margin: -4px -8px 0 0;
+    font-size: 22px; font-weight: 200; color: var(--paper-dim);
+    transition: color .2s, transform .3s var(--ease);
   }
-  #panel-close:hover { background: rgba(255, 255, 255, 0.14); color: var(--ink); }
-  #panel-subtitle { margin: 0 0 8px; color: var(--gold); font-size: 14px; letter-spacing: 0.02em; }
+  #panel-close:hover { color: var(--paper); transform: rotate(90deg); }
   #panel-body {
-    margin: 0;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    white-space: pre-line;
-    font-size: 17px;
-    line-height: 1.75;
+    margin: 6px 0 0; flex: 1; min-height: 0; overflow-y: auto;
+    white-space: pre-line; font-size: 16px; line-height: 1.8; color: var(--paper);
+    padding-top: 14px; border-top: 1px solid var(--paper-faint);
   }
-  #panel-body.story { font: 400 20px/1.9 var(--font-story); }
-  #panel-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  #panel-body.story { font: 300 20px/1.95 var(--display); }
+  #panel-body.turn { animation: page .5s var(--ease); }
+  @keyframes page { from { opacity: 0; transform: translateX(12px); } }
+  #panel-actions { display: flex; flex-direction: column; gap: 8px; }
   #panel-actions .row { display: flex; gap: 8px; }
   #panel-actions .row > * { flex: 1; min-width: 0; }
-  #panel-actions .item {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-    min-height: 72px; padding: 12px 20px; text-align: left; cursor: pointer;
-    border: 1px solid var(--glass-line); border-radius: 18px; background: rgba(255, 255, 255, 0.04);
+
+  .primary {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    min-height: 60px; padding: 0 20px;
+    background: var(--paper); color: var(--on-paper);
+    font-size: 16px; font-weight: 600; letter-spacing: .01em;
+    transition: transform .15s;
   }
-  #panel-actions .item:hover { background: rgba(255, 255, 255, 0.08); }
-  #panel-actions .item b { font-size: 18px; font-weight: 500; }
-  #panel-actions .item span { font-size: 13px; color: var(--ink-dim); }
+  .primary:active { transform: scale(.985); }
+  /* While reading aloud, three bars move beside the label. */
+  .primary.speaking::before {
+    content: ""; width: 16px; height: 16px; flex: none;
+    background:
+      linear-gradient(currentColor, currentColor) 0 100% / 3px 40% no-repeat,
+      linear-gradient(currentColor, currentColor) 6px 100% / 3px 100% no-repeat,
+      linear-gradient(currentColor, currentColor) 12px 100% / 3px 60% no-repeat;
+    animation: bars .9s ease-in-out infinite;
+  }
+  @keyframes bars {
+    33% { background-size: 3px 100%, 3px 35%, 3px 80%; }
+    66% { background-size: 3px 55%, 3px 75%, 3px 30%; }
+  }
+  .ghost {
+    min-height: 54px; padding: 0 16px;
+    border: 1px solid var(--paper-faint); font-size: 15px;
+    transition: border-color .2s;
+  }
+  .ghost:hover { border-color: var(--paper); }
+  #panel-actions .item {
+    display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: 12px;
+    padding: 16px 0; text-align: left;
+    border-bottom: 1px solid var(--paper-faint);
+  }
+  #panel-actions .item:first-child { border-top: 1px solid var(--paper-faint); }
+  #panel-actions .item b { font: 300 23px/1.3 var(--display); }
+  #panel-actions .item span { font-size: 13px; color: var(--paper-dim); }
+  #panel-actions .item::after {
+    content: "→"; grid-column: 2; grid-row: 1; color: var(--paper-dim);
+    transform: translateX(-6px); opacity: 0; transition: transform .3s var(--ease), opacity .3s;
+  }
+  #panel-actions .item:hover::after { transform: none; opacity: 1; }
+  #panel-actions .item span { grid-column: 1; }
 
   #driving {
-    position: fixed; inset: 0; display: grid; place-content: center; gap: 20px;
-    padding: 24px; text-align: center; background: rgba(5, 8, 16, 0.95);
-    font-size: 24px; line-height: 1.6;
+    position: fixed; inset: 0; z-index: 5;
+    display: grid; place-content: center; justify-items: center; gap: 24px;
+    padding: 24px; text-align: center; background: rgba(4, 6, 12, .96);
+    animation: fade .4s both;
   }
-  #driving p { margin: 0; max-width: 34ch; }
-  #driving .gear { font-size: 13px; letter-spacing: 0.2em; color: var(--ink-dim); }
+  @keyframes fade { from { opacity: 0; } }
+  #driving p { margin: 0; max-width: 22ch; font: 300 30px/1.5 var(--display); }
+  #driving .gear { font: 400 12px var(--mono); letter-spacing: .3em; color: var(--paper-dim); }
+  #driving .primary { padding: 0 28px; }
+
   #toast {
-    position: fixed; left: 50%; bottom: calc(var(--edge-b) + 92px); transform: translateX(-50%);
-    width: max-content; max-width: min(640px, calc(100% - 32px));
-    padding: 12px 20px; border-radius: 16px; background: var(--glass-strong); font-size: 15px; text-align: center;
-  }
-  #loading {
-    position: fixed; inset: 0; display: grid; place-content: center; color: var(--ink-dim); letter-spacing: 0.04em;
+    position: fixed; z-index: 4; left: 50%; bottom: calc(90px + var(--gb));
+    transform: translateX(-50%);
+    width: max-content; max-width: min(620px, calc(100% - 32px));
+    padding: 12px 18px; background: var(--sheet); border: 1px solid var(--paper-faint);
+    font-size: 14px; text-align: center;
+    animation: rise .35s var(--ease) both;
   }
 
-  /* Narrower screens: stack the top controls, move stories and Gleo above the dock, panel as a sheet. */
   @media (max-width: 900px) {
-    :root { --edge-l: max(16px, env(safe-area-inset-left, 0px)); --edge-r: max(16px, env(safe-area-inset-right, 0px));
-            --edge-t: max(12px, env(safe-area-inset-top, 0px)); --edge-b: max(12px, env(safe-area-inset-bottom, 0px)); --tap: 46px; }
-    .timecard { padding: 10px 16px 12px; border-radius: 18px; }
-    #clock { font-size: 28px; }
-    .controls { top: auto; bottom: calc(var(--edge-b) + 136px); right: var(--edge-r); left: var(--edge-l); flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-    .seg button { min-height: 38px; padding: 0 14px; font-size: 14px; }
-    .pill { padding: 0 16px; font-size: 14px; }
-    .dock { left: var(--edge-l); right: var(--edge-r); transform: none; justify-content: space-between; }
-    .dock .step { min-width: 44px; min-height: 44px; padding: 0 10px; font-size: 13px; }
-    #stories { bottom: calc(var(--edge-b) + 72px); min-height: 52px; font-size: 15px; padding: 0 20px; }
-    .demo-drive { bottom: calc(var(--edge-b) + 84px); }
-    #daylight { top: auto; bottom: calc(var(--edge-b) + 196px); flex-direction: column; gap: 8px; padding: 12px; border-radius: 20px; text-align: center; }
+    #clock { font-size: 40px; }
+    .shade { width: 340px; height: 200px; }
+    .shade.bottom { height: 230px; }
+    .group + .group { margin-left: 0; padding-left: 0; border-left: 0; }
+    .group.end { margin-left: 0; }
+    .strip { justify-content: space-between; }
+    .ctl { min-height: 48px; padding: 0 10px; font-size: 14px; }
+    .ctl::after { left: 10px; right: 10px; }
+    .ctl.lead { font-size: 17px; }
     #panel {
-      top: auto; left: var(--edge-l); right: var(--edge-r); width: auto;
-      bottom: calc(var(--edge-b) + 72px); max-height: 62%; padding: 18px 18px 16px 20px;
+      top: auto; left: 0; width: auto; max-height: 72%;
+      bottom: 0;
+      padding: 22px calc(var(--gr) + 4px) calc(var(--gb) + 18px) calc(var(--gl) + 4px);
+      border-left: 0; border-top: 1px solid var(--paper-faint);
+      animation-name: sheet-up;
     }
-    #panel-title { font-size: 22px; }
-    #panel-body.story { font-size: 17px; }
-    #toast { bottom: calc(var(--edge-b) + 200px); }
+    @keyframes sheet-up { from { transform: translateY(30px); opacity: 0; } }
+    #panel-title { font-size: 26px; }
+    #panel-body.story { font-size: 18px; }
+    #toast { bottom: calc(124px + var(--gb)); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .pill { transition: none; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    #sky { opacity: 1; }
   }
 </style>
 
 <canvas id="sky" aria-label="지금 이 자리의 밤하늘. 끌어서 둘러보고, 휠이나 두 손가락으로 확대하고, 별을 눌러 보세요."></canvas>
-<div id="loading">하늘을 그리는 중…</div>
+<div id="loading">하늘을 그리는 중</div>
+<div class="shade" aria-hidden="true"></div>
+<div class="shade bottom" aria-hidden="true"></div>
 
-<section class="timecard glass" aria-live="polite">
+<section class="when" aria-live="polite">
   <div id="clock">--:--</div>
   <div id="date"></div>
-  <button id="place" type="button">영양 국제밤하늘보호공원 ▾</button>
+  <div id="coords"></div>
+  <button id="place" type="button">영양 국제밤하늘보호공원</button>
   <button id="back-now" type="button" hidden>시간 이동 중 · 지금으로</button>
 </section>
 
-<button class="demo-drive" id="drive" type="button">웹 데모 · 주행 시작해 보기</button>
-
-<nav class="controls" aria-label="보기">
-  <div class="seg glass" role="group" aria-label="보는 방향">
-    <button id="seg-windshield" class="on" type="button" aria-pressed="true">앞유리</button>
-    <button id="seg-sunroof" type="button" aria-pressed="false">선루프</button>
-  </div>
-  <button class="pill" id="lines" type="button" aria-pressed="false">별자리 선</button>
-  <button class="pill" id="night" type="button" aria-pressed="false">관측 모드</button>
-</nav>
-
-<div id="daylight" class="glass" hidden>
+<div id="daylight" hidden>
   <span>지금은 하늘이 밝아서 별이 잘 안 보여요</span>
-  <button class="primary" id="tonight" type="button">오늘 밤 9시 하늘 보기</button>
+  <button class="primary" id="tonight" type="button">오늘 밤 9시 하늘</button>
 </div>
 
-<button class="primary" id="stories" type="button">✦ 별자리 이야기</button>
-
-<div class="dock glass" role="group" aria-label="시간">
-  <button class="step" id="minus" type="button">−1시간</button>
-  <button class="step" id="plus" type="button">+1시간</button>
-  <button class="step" id="play" type="button">▶ 빠르게</button>
-</div>
+<nav class="strip" aria-label="조작">
+  <div class="group">
+    <button class="ctl lead" id="stories" type="button">별자리 이야기</button>
+  </div>
+  <div class="group" role="group" aria-label="시간">
+    <button class="ctl" id="minus" type="button"><span class="num">−1</span>시간</button>
+    <button class="ctl" id="plus" type="button"><span class="num">+1</span>시간</button>
+    <button class="ctl" id="play" type="button">빠르게</button>
+  </div>
+  <div class="group" role="group" aria-label="보기">
+    <button class="ctl on" id="seg-windshield" type="button" aria-pressed="true">앞유리</button>
+    <button class="ctl" id="seg-sunroof" type="button" aria-pressed="false">선루프</button>
+    <button class="ctl" id="lines" type="button" aria-pressed="false">별자리 선</button>
+    <button class="ctl" id="night" type="button" aria-pressed="false">관측 모드</button>
+  </div>
+  <div class="group end">
+    <button class="demo" id="drive" type="button">웹 데모 · 주행 시작해 보기</button>
+  </div>
+</nav>
 
 <aside id="panel" hidden>
   <div class="panel-head">
     <h2 id="panel-title"></h2>
-    <button id="panel-close" type="button" aria-label="닫기">✕</button>
+    <button id="panel-close" type="button" aria-label="닫기">×</button>
   </div>
   <p id="panel-subtitle"></p>
   <p id="panel-body"></p>
@@ -330,9 +325,9 @@
 <div id="toast" role="status" hidden></div>
 
 <div id="driving" hidden>
-  <span class="gear">기어 D · 주행 중</span>
-  <p>운전 중에는 별을 볼 수 없어요.<br>안전한 곳에 차를 세우면 보던 하늘을 이어서 보여 드릴게요.</p>
-  <div><button class="primary" id="park" type="button">정차하기 (기어 P)</button></div>
+  <span class="gear">GEAR D · 주행 중</span>
+  <p>운전 중에는 별을 볼 수 없어요. 차를 세우면 보던 하늘을 이어서 보여 드릴게요.</p>
+  <button class="primary" id="park" type="button">정차하기 (기어 P)</button>
 </div>
 
 <script src="byeolmajung.js" charset="utf-8"></script>

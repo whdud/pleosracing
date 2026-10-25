@@ -42,34 +42,34 @@ class AppScreenshotTest {
         val root = controller.get().window.decorView
 
         waitFor { findSky(root)?.snapshot != null }
-        click(root, "영양 국제밤하늘보호공원  ▾")
+        click(root, "영양 국제밤하늘보호공원")
         click(root, "영양 국제밤하늘보호공원\n아주 어두운 하늘")
-        if (findButton(root, "오늘 밤 9시 하늘 보기")?.isShown == true) click(root, "오늘 밤 9시 하늘 보기")
+        if (findButton(root, "오늘 밤 9시 하늘")?.isShown == true) click(root, "오늘 밤 9시 하늘")
         shot(root, "1_main")
 
         click(root, "별자리 선")
         shot(root, "2_constellation_lines")
         click(root, "별자리 선")
 
-        click(root, "✦  별자리 이야기")
+        click(root, "별자리 이야기")
         shot(root, "3_story_list")
         click(root, "견우와 직녀\n여름 별자리")
         shot(root, "4_story_page")
         click(root, "다음")
         shot(root, "5_story_page2")
-        click(root, "✕")
+        click(root, "×")
 
         // Gleo: "글레오야, 직녀성에 대해 알려줘"
         controller.newIntent(Intent("DESCRIBE_SKY_OBJECT").putExtra("ACTION_PARAM", "{\"name\":\"직녀성\"}"))
         idle()
         shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(1))
-        assertNotNull(findButton(root, "▶  설명 듣기"), "the star panel offers 설명 듣기")
+        assertNotNull(findButton(root, "설명 듣기"), "the star panel offers 설명 듣기")
         val response = shadowOf(RuntimeEnvironment.getApplication()).broadcastIntents
             .last { it.action == "ai.pleos.playground.intent.action.APP_ACTION_RESPONSE" }
             .getStringExtra("response").orEmpty()
         assertTrue(response.contains("\"status\":\"success\"") && response.contains("Vega"), response)
         shot(root, "6_gleo_describe")
-        click(root, "✕")
+        click(root, "×")
 
         click(root, "선루프")
         shot(root, "7_sunroof")
