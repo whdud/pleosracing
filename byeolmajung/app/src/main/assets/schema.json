@@ -1,0 +1,54 @@
+{
+  "packageName": "com.byeolmajung.app",
+  "appDescription": "A stargazing app for a parked car that shows tonight's sky and tells children's stories about stars and constellations.",
+  "invokeWord": "별마중",
+  "version": "0.1.0",
+  "functions": [
+    {
+      "name": "DESCRIBE_SKY_OBJECT",
+      "description": "Describes a star, planet, the Moon or a constellation and tells its story. Used when the user asks what a star is or wants to hear about it.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the star, planet or constellation, such as 직녀성, 목성 or 오리온자리. Empty when the user means the one selected on the screen."
+          }
+        },
+        "required": []
+      },
+      "component": "activity"
+    },
+    {
+      "name": "FIND_SKY_OBJECT",
+      "description": "Turns the sky view toward a star, planet, the Moon or a constellation and tells where it is in the sky now.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the star, planet or constellation to find, such as 북극성, 화성 or 카시오페이아자리."
+          }
+        },
+        "required": ["name"]
+      },
+      "component": "activity"
+    },
+    {
+      "name": "TELL_CONSTELLATION_STORY",
+      "description": "Shows and reads aloud a children's story about constellations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "story": {
+            "type": "string",
+            "description": "Title of the story.",
+            "enum": ["견우와 직녀", "북두칠성이 된 일곱 형제", "오리온과 전갈", "페르세우스와 안드로메다 공주"]
+          }
+        },
+        "required": ["story"]
+      },
+      "component": "activity"
+    }
+  ]
+}

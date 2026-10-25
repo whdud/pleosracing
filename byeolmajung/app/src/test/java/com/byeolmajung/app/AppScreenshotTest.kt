@@ -1,5 +1,6 @@
 package com.byeolmajung.app
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.Looper
@@ -17,6 +18,7 @@ import org.robolectric.annotation.GraphicsMode
 import java.io.File
 import java.util.TimeZone
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /**
  * Runs the real MainActivity on the JVM with Robolectric's native graphics and saves screenshots to
@@ -36,33 +38,45 @@ class AppScreenshotTest {
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Seoul"))
         // No Pleos services here, as on a stock emulator: refuse the Vehicle SDK's service binding.
         shadowOf(RuntimeEnvironment.getApplication()).declareActionUnbindable("ai.pleos.playground.vehicle.VEHICLE_START")
-        val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
-        val root = activity.window.decorView
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val root = controller.get().window.decorView
 
         waitFor { findSky(root)?.snapshot != null }
-        click(root, "장소")
-        click(root, "영양 국제밤하늘보호공원")
+        click(root, "영양 국제밤하늘보호공원  ▾")
+        click(root, "영양 국제밤하늘보호공원\n아주 어두운 하늘")
         if (findButton(root, "오늘 밤 9시 하늘 보기")?.isShown == true) click(root, "오늘 밤 9시 하늘 보기")
         shot(root, "1_main")
 
         click(root, "별자리 선")
         shot(root, "2_constellation_lines")
-        click(root, "별자리 선 끄기")
+        click(root, "별자리 선")
 
-        click(root, "별자리 이야기")
+        click(root, "✦  별자리 이야기")
         shot(root, "3_story_list")
-        click(root, "견우와 직녀  (여름)")
+        click(root, "견우와 직녀\n여름 별자리")
         shot(root, "4_story_page")
         click(root, "다음")
         shot(root, "5_story_page2")
-        click(root, "닫기")
+        click(root, "✕")
 
-        click(root, "선루프 보기")
-        shot(root, "6_sunroof")
-        click(root, "앞유리 보기")
+        // Gleo: "글레오야, 직녀성에 대해 알려줘"
+        controller.newIntent(Intent("DESCRIBE_SKY_OBJECT").putExtra("ACTION_PARAM", "{\"name\":\"직녀성\"}"))
+        idle()
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(1))
+        assertNotNull(findButton(root, "▶  설명 듣기"), "the star panel offers 설명 듣기")
+        val response = shadowOf(RuntimeEnvironment.getApplication()).broadcastIntents
+            .last { it.action == "ai.pleos.playground.intent.action.APP_ACTION_RESPONSE" }
+            .getStringExtra("response").orEmpty()
+        assertTrue(response.contains("\"status\":\"success\"") && response.contains("Vega"), response)
+        shot(root, "6_gleo_describe")
+        click(root, "✕")
+
+        click(root, "선루프")
+        shot(root, "7_sunroof")
+        click(root, "앞유리")
 
         click(root, "관측 모드")
-        shot(root, "7_stargazing_mode")
+        shot(root, "8_stargazing_mode")
     }
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()

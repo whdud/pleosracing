@@ -12,6 +12,8 @@
 - **관측 모드**: 실내등, 독서등, 무드등을 모두 꺼서 눈이 어둠에 익게 돕습니다. 끄면 각 조명을 원래 상태로 되돌립니다
 - **별자리 이야기 4편**: 견우와 직녀, 북두칠성이 된 일곱 형제, 오리온과 전갈, 페르세우스와 안드로메다 공주. 고르면 해당 별자리를 강조해서 찾아주고, 지금 안 보이면 잘 보이는 날짜와 시간으로 이동합니다
 - **별·행성·달 정보**: 누르면 이름, 밝기, 거리("이 빛은 25년 전에 출발했어요"), 색과 온도를 쉬운 말로 설명합니다
+- **설명 듣기**: 별이나 별자리를 고르고 "▶ 설명 듣기"를 누르면 지금 어느 쪽 하늘에 있는지와 그 별·별자리 이야기(밝은 별 20개, 별자리 20개)를 읽어 줍니다. 별자리 이야기는 "▶ 이야기 듣기"로 끝까지 읽어 주며 장을 저절로 넘깁니다
+- **Gleo 음성 명령** (`app/src/main/assets/schema.json`): "글레오야, 이 별 뭐야?"(`DESCRIBE_SKY_OBJECT`), "목성 어디 있어?"(`FIND_SKY_OBJECT`), "견우와 직녀 이야기 들려줘"(`TELL_CONSTELLATION_STORY`). 결과는 `APP_ACTION_RESPONSE` 브로드캐스트로 Gleo에 돌려줍니다
 - **시간 이동**: ±1시간, 빠르게 돌려보기, 낮에는 "오늘 밤 9시 하늘 보기"
 - **주행 중 사용 제한**: CarUxRestrictions로 주행 중에는 화면을 가리고, 정차하면 보던 하늘을 이어서 보여줍니다
 
@@ -31,6 +33,8 @@
 | 관측 모드 조명 | Vehicle SDK 2.3.2 Light `setCabinLightSwitch()`, `setReadingLightSwitch()`, `setAmbientLightSwitch()` (좌석별) | `pleos.car.permission.CAR_LIGHTS`, `CONTROL_CAR_LIGHTS` |
 | 선루프 가림막 | Vehicle SDK 2.3.2 Window `ROOF_TOP_1` `registerWindowBlindPosition()`, `moveWindowBlind()` | `pleos.car.permission.CAR_WINDOWS`, `CONTROL_CAR_WINDOWS` |
 | 주행 중 제한 | AAOS `CarUxRestrictionsManager` | - |
+| 음성 명령 | Gleo Interface: 기능 이름을 action으로 받는 intent-filter, `ACTION_PARAM`, `ai.pleos.playground.intent.action.APP_ACTION_RESPONSE` (`GleoBridge.kt`) | - |
+| 설명 듣기 | Android `TextToSpeech` (Pleos TTS SDK가 "준비 중"이라 기본 엔진 사용, `Speaker.kt`) | - |
 
 모든 차량 기능은 capability를 먼저 확인하고, 지원하지 않는 차량(또는 에뮬레이터)에서는 조용히 건너뜁니다.
 차 위치를 받을 수 없으면 "장소" 메뉴의 프리셋(서울, 영양 국제밤하늘보호공원, 화천 조경철천문대, 제주)으로 동작합니다.
@@ -49,7 +53,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
 ### 웹 데모 (브라우저에서 바로 조작)
-같은 하늘 엔진(`sky/`)을 Kotlin/JS로 컴파일한 웹 버전입니다. 차 전용 기능(차 위치·방향, 조명, 선루프)은 장소 선택과 화면 효과로 대신합니다.
+같은 하늘 엔진(`sky/`)을 Kotlin/JS로 컴파일한 웹 버전입니다. 차 전용 기능(차 위치·방향, 조명, 선루프)은 장소 선택과 화면 효과로 대신합니다. 설명 듣기는 브라우저 음성 합성으로 읽고, "글레오에게 물어보기"에서는 문장을 앱과 같은 Gleo 기능 호출로 바꿔 응답을 보여 줍니다.
 ```bash
 ./gradlew :sky:webDemo   # 결과: sky/build/web (index.html, byeolmajung.js, sky/ 데이터)
 ```
@@ -74,12 +78,13 @@ Pleos 이미지를 받기 전에도 구글의 일반 Android Automotive 에뮬�
 ./gradlew :sky:jvmTest            # 천문 계산 테스트 + 하늘 미리보기: sky/build/preview/*.png
 ./gradlew :app:testDebugUnitTest  # 실제 앱 화면 스크린샷 (Robolectric): app/build/screenshots/*.png
 ```
-앱 스크린샷 테스트는 실제 `MainActivity`를 띄워 장소 선택, 별자리 선, 이야기, 선루프 보기, 관측 모드를 차례로 눌러 보며 화면을 저장합니다. Pleos 서비스가 없는 환경이라 일반 에뮬레이터와 같은 상태로 동작합니다.
+앱 스크린샷 테스트는 실제 `MainActivity`를 띄워 장소 선택, 별자리 선, 이야기, Gleo 명령(`DESCRIBE_SKY_OBJECT` 인텐트와 응답 브로드캐스트), 선루프 보기, 관측 모드를 차례로 눌러 보며 화면을 저장합니다. Pleos 서비스가 없는 환경이라 일반 에뮬레이터와 같은 상태로 동작합니다.
 천문 계산은 Meeus 예제(항성시), 북극성 고도 = 위도, 2026년 춘분·하지 태양 적위, 2026년 3월 보름달·삭으로 검증합니다.
 
 ## 확인이 필요한 가정
 
 - **선루프 가림막 값의 방향**: 문서에 열림/닫힘 방향이 나와 있지 않아서, AAOS `WINDOW_POS`처럼 최댓값이 "완전히 열림", `MoveControl.FORWARD`가 "여는 방향"이라고 가정했습니다 (`VehicleServices.kt`). 에뮬레이터나 실차에서 확인 후 수정합니다.
+- **Gleo 파라미터 형식**: Pleos 샘플처럼 `ACTION_PARAM`이 따옴표로 한 번 더 감싸진 JSON 문자열로 와도, 그냥 JSON으로 와도 받도록 했습니다. 실제 Gleo 호출로 확인이 필요합니다.
 - **조명·창문 제어 권한**: Pleos Playground에서 차량 제어 SDK가 "준비 중"으로 표시되어 있어, 현재는 권한이 거부될 수 있습니다. 거부되면 "이 차에서는 조명을 끌 수 없어요"라고 안내합니다.
 
 ## 데이터 출처와 라이선스

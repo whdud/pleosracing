@@ -13,6 +13,7 @@ import java.io.File
 import java.time.ZonedDateTime
 import javax.imageio.ImageIO
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -41,6 +42,25 @@ class SkyPreviewTest {
         assertTrue(catalog.stars.size > 8000)
         assertTrue(catalog.constellations.size >= 88)
         assertTrue(catalog.constellation("Ori")?.nameKo == "오리온자리")
+    }
+
+    @Test
+    fun gleoFindsObjectsBySpokenNames() {
+        val snap = SkySnapshot.compute(catalog, ZonedDateTime.parse("2026-08-12T22:00:00+09:00").toInstant().toEpochMilli(), yeongyang)
+        val vega = Gleo.find("베가", snap) as SkyObject.StarObject
+        assertEquals("Vega", vega.star.properName)
+        assertEquals("Vega", (Gleo.find("직녀성", snap) as SkyObject.StarObject).star.properName)
+        assertEquals("jupiter", (Gleo.find("목성", snap) as SkyObject.BodyObject).body.id)
+        assertEquals("Ori", (Gleo.find("오리온", snap) as SkyObject.ConstellationObject).constellation.abbr)
+        assertEquals("Ori", (Gleo.find("오리온자리", snap) as SkyObject.ConstellationObject).constellation.abbr)
+        assertEquals(null, Gleo.find("없는별", snap))
+        assertEquals("견우와 직녀", Gleo.findStory("견우 직녀")?.title)
+
+        val json = Gleo.describe(vega, snap, snap.starHorizontal(vega.index)).toJson()
+        assertTrue(json.startsWith("{\"functionName\":\"DESCRIBE_SKY_OBJECT\",\"status\":\"success\""), json)
+        // data is a JSON array serialized into a string, so its quotes are escaped.
+        assertTrue("\"data\":\"[{\\\"name\\\":\\\"직녀성\\\"" in json, json)
+        assertTrue(json.endsWith(",\"mode\":\"voice\"}"), json)
     }
 
     @Test

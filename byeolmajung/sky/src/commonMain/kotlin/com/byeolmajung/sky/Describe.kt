@@ -53,6 +53,37 @@ object Describe {
         return Description(c.nameKo, where(position) ?: "", body, story)
     }
 
+    /**
+     * What "설명 듣기" reads aloud: the object's name, then its legend (the star's own tale, or else its
+     * constellation's), then the plain facts for objects without one.
+     */
+    fun narration(obj: SkyObject, catalog: SkyCatalog, position: Horizontal?): String {
+        val d = of(obj, catalog, position)
+        val legend = when (obj) {
+            is SkyObject.StarObject -> Legends.forStar(obj.star.properName) ?: Legends.forConstellation(obj.star.constellation)
+            is SkyObject.ConstellationObject -> Legends.forConstellation(obj.constellation.abbr)
+            is SkyObject.BodyObject -> null
+        }
+        val name = spokenName(d.title)
+        val intro = when (obj) {
+            is SkyObject.StarObject -> catalog.constellation(obj.star.constellation)
+                ?.let { "$name${josa(name, "은", "는")} ${it.nameKo}에 있는 별이에요." } ?: "$name${josa(name, "이에요", "예요")}."
+            else -> "$name${josa(name, "이에요", "예요")}."
+        }
+        val where = position?.takeIf { it.alt > 0 }?.let { " 지금 ${compass(it.az)}쪽 하늘에 떠 있어요." }.orEmpty()
+        return listOf(intro + where, legend ?: d.body).joinToString(" ")
+    }
+
+    /** Picks the Korean particle form for [word]: [withFinal] after a final consonant (받침), else [withoutFinal]. */
+    internal fun josa(word: String, withFinal: String, withoutFinal: String): String {
+        val last = word.trimEnd().lastOrNull() ?: return withFinal
+        if (last.code !in 0xAC00..0xD7A3) return withFinal
+        return if ((last.code - 0xAC00) % 28 != 0) withFinal else withoutFinal
+    }
+
+    /** "직녀성 (베가)" → "직녀성": parentheses read badly aloud. */
+    private fun spokenName(title: String) = title.substringBefore(" (").substringBefore(" ·")
+
     /** "남동쪽 하늘, 높이 32°" */
     fun where(position: Horizontal?): String? {
         val p = position ?: return null

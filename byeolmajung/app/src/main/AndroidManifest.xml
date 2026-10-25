@@ -33,6 +33,20 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Gleo AI voice commands; see assets/schema.json -->
+            <intent-filter>
+                <action android:name="DESCRIBE_SKY_OBJECT" />
+                <action android:name="FIND_SKY_OBJECT" />
+                <action android:name="TELL_CONSTELLATION_STORY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
     </application>
+
+    <!-- "설명 듣기" reads aloud with the platform text-to-speech engine -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
 </manifest>

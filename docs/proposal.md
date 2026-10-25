@@ -46,18 +46,22 @@
   - **그리스 신화**: 오리온, 큰곰자리와 작은곰자리, 페르세우스와 안드로메다, 카시오페이아 등
   - **우리 별 이야기**: 견우와 직녀(여름철 은하수), 북두칠성, 조선의 천문도 '천상열차분야지도'
 - 계절별로 지금 보이는 별자리를 골라 이야기를 추천합니다.
-- 이야기는 음성(TTS)으로 읽어주어, 아이가 화면을 보면서 들을 수 있습니다.
+- 이야기는 음성(TTS)으로 읽어주어, 아이가 화면을 보면서 들을 수 있습니다. 한 장을 다 읽으면 다음 장으로 저절로 넘어갑니다.
+- 별이나 별자리를 누르고 **"설명 듣기"**를 누르면, 그 별이 지금 어느 쪽 하늘에 있는지와 함께 그 별·별자리에 얽힌 이야기를 읽어 줍니다. (예: 직녀성 → 오작교 이야기, 베텔게우스 → 언젠가 폭발할 거대한 별, 좀생이별 → 옛 농사 점) 밝은 별 20개, 별자리 20개의 이야기를 담았습니다.
 - 본 별자리를 모으는 **별자리 도감(수집)**과 간단한 퀴즈로 다시 찾아볼 이유를 만듭니다.
 
 **③ Gleo와 별 이야기 나누기**
 
-Gleo Interface로 음성 명령 3가지를 연동합니다.
+Gleo Interface로 음성 명령 3가지를 연동합니다. (Gleo Interface의 앱당 최대 3개 기능 기준, 프로토타입에 구현 완료)
 
-| Gleo 기능 | 사용 예 | 동작 |
+| Gleo 기능 (`schema.json`) | 사용 예 | 동작 |
 |---|---|---|
-| 선택한 별 설명 | "글레오야, 이 별 뭐야?" | 화면에서 선택한 별의 이름, 별자리, 거리, 밝기, 짧은 이야기를 Gleo에 전달하고, Gleo가 자연스럽게 설명 |
-| 천체 찾기 | "글레오야, 목성 어디 있어?" | 화면이 해당 천체로 이동하고, Gleo가 "남동쪽 하늘 30도 높이에 있어요"처럼 방향 안내 |
-| 관측 명소 찾기 | "글레오야, 근처에 별 보기 좋은 데 있어?" | 가까운 관측 명소와 천문대를 추천하고 내비게이션 길안내 시작 |
+| 별 설명 `DESCRIBE_SKY_OBJECT` | "글레오야, 이 별 뭐야?" / "직녀성에 대해 알려줘" | 이름을 말하면 그 별을, 말하지 않으면 화면에서 고른 별을 찾아 이름, 종류, 밝기, 거리, 방향과 이야기를 Gleo에 전달하고, Gleo가 자연스럽게 설명 |
+| 천체 찾기 `FIND_SKY_OBJECT` | "글레오야, 목성 어디 있어?" | 화면이 해당 천체로 돌아가고, Gleo가 "남동쪽 하늘 30도 높이에 있어요"처럼 방향 안내. 지평선 아래면 지금은 안 보인다고 안내 |
+| 별자리 이야기 `TELL_CONSTELLATION_STORY` | "글레오야, 견우와 직녀 이야기 들려줘" | 이야기를 열고 그 별자리가 잘 보이는 시간의 하늘로 이동한 뒤, 앱이 직접 이야기를 끝까지 읽어 줌 (Gleo는 조용히 대기) |
+
+- "직녀성", "베가", "오리온", "오리온자리"처럼 우리말 이름, 영어 이름, '자리'를 뺀 이름을 모두 알아듣습니다.
+- 관측 명소 찾기는 앱 화면의 버튼과 내비게이션 길안내로 제공합니다.
 
 **④ 관측 모드 (실내 조명 연동)**
 - 관측 모드를 켜면 실내등, 독서등, 무드등을 한 번에 모두 꺼서 눈이 어둠에 적응하도록 돕습니다.
@@ -129,8 +133,8 @@ Gleo Interface로 음성 명령 3가지를 연동합니다.
 | 관측 모드 조명 | **Vehicle SDK – Light** | `setCabinLightSwitch()`, `setReadingLightSwitch()`, `setAmbientLightSwitch()`로 실내등·독서등·무드등 모두 끄기, 종료 시 원래 상태로 복원 | `pleos.car.permission.CAR_LIGHTS`, `CONTROL_CAR_LIGHTS` |
 | 선루프 관측 모드 | **Vehicle SDK – Window** | 천장 창(`ROOF_TOP_1`, `ROOF_TOP_2`) 대상. `getCurrentWindowBlindPosition()`/`registerWindowBlindPosition()`으로 가림막 상태 감지, `moveWindowBlind()`로 가림막 열기, `getCurrentWindowPosition()`으로 유리 상태 확인 | 읽기 `pleos.car.permission.CAR_WINDOWS`, 제어 `pleos.car.permission.CONTROL_CAR_WINDOWS` |
 | 관측 명소 길안내 | **NaviHelper SDK** | `requestRoute()`로 관측 명소 목적지 설정, `getCurrentLocationInfo()`로 현재 위치 보조 | `pleos.car.permission.NAVI_ROUTE`, `NAVI_ROUTE_SEARCH` |
-| 별자리 이야기 낭독 | **TextToSpeech SDK** | 별자리 이야기, 천체 설명 음성 출력 | SDK 안내에 따름 |
-| 음성 질문 | **Gleo Interface** | `assets/schema.json`에 3개 기능(`DESCRIBE_SELECTED_STAR`, `FIND_SKY_OBJECT`, `FIND_STARGAZING_SPOT`) 등록, Callback으로 천체 데이터 반환 | - |
+| 설명 듣기·이야기 낭독 | **TextToSpeech SDK** (현재 프로토타입은 Android 기본 TTS) | 별·별자리 설명과 이야기 음성 출력. Pleos TTS SDK가 열리면 교체 | SDK 안내에 따름 |
+| 음성 질문 | **Gleo Interface** | `assets/schema.json`에 3개 기능(`DESCRIBE_SKY_OBJECT`, `FIND_SKY_OBJECT`, `TELL_CONSTELLATION_STORY`) 등록. 기능 이름을 action으로 받는 intent-filter, `ACTION_PARAM` 파싱, `APP_ACTION_RESPONSE` 브로드캐스트로 결과(이름, 종류, 밝기, 거리, 방향, 이야기) 반환 | - |
 | 정차·주행 판단 | **AAOS CarUxRestrictions**, `GEAR_SELECTION` | 주행 제한 시 화면 숨김 및 상태 저장, 정차 시 복귀 | `android.car.permission.CAR_POWERTRAIN` |
 
 ### 천문 계산과 데이터
@@ -151,8 +155,8 @@ Gleo Interface로 음성 명령 3가지를 연동합니다.
 ### 개발 일정
 | 기간 | 내용 |
 |---|---|
-| ~ 11/15 | 실시간 밤하늘 렌더링, 위치·방향 연동, 별자리 이야기 3편, 정차 전용 처리, 시연 영상 |
-| ~ 12/3 | Gleo 연동, 관측 모드(조명 제어), 선루프 관측 모드, 관측 명소 길안내, 별자리 도감, 이야기 확장 |
+| ~ 11/15 | 실시간 밤하늘 렌더링, 위치·방향 연동, 별자리 이야기 4편과 별·별자리 이야기 40개, 설명 듣기(TTS), Gleo 3개 기능, 관측 모드(조명 제어), 선루프 관측 모드, 정차 전용 처리, 시연 영상 (프로토타입 완료) |
+| ~ 12/3 | 실차·에뮬레이터 검증, 관측 명소 길안내, 별자리 도감, 이야기 확장 |
 
 ---
 

@@ -3,28 +3,31 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;700&display=swap">
 <style>
-  /* Layout: one screen like an in-car display. The sky fills it; controls float over the sky:
-     status chip top-left, control bar along the bottom, a side panel on the right (bottom sheet on phones). */
+  /* One screen like an in-car display: the sky fills it and glass controls float over it.
+     Time card top-left, view controls top-right, stories and the time dock along the bottom,
+     details in a side panel (bottom sheet on phones). */
   :root {
     color-scheme: dark;
-    --night: #05070d;          /* sky and page ground */
-    --glass: rgba(11, 16, 32, 0.82);
-    --glass-strong: rgba(13, 20, 38, 0.94);
-    --ink: #e4ecf7;            /* text */
-    --ink-dim: #9db0cc;
-    --starlight: #ffd36b;      /* accent: the highlighted-constellation gold */
-    --button: #1b2640;
-    --button-hover: #253354;
-    --line: rgba(143, 166, 204, 0.22);
+    --night: #05070d;
+    --glass: rgba(12, 18, 34, 0.72);
+    --glass-strong: rgba(12, 18, 34, 0.92);
+    --glass-line: rgba(255, 255, 255, 0.12);
+    --ink: #e6ecf5;
+    --ink-dim: #8e9bb3;
+    --gold: #f2c46d;
+    --gold-ink: #0a0e1a;
     --font-ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
     --font-story: "Gowun Batang", "AppleMyungjo", "Batang", serif;
-    --radius: 18px;
-    --edge-l: max(16px, env(safe-area-inset-left, 0px));
-    --edge-r: max(16px, env(safe-area-inset-right, 0px));
+    --edge-l: max(24px, env(safe-area-inset-left, 0px));
+    --edge-r: max(24px, env(safe-area-inset-right, 0px));
+    --edge-t: max(20px, env(safe-area-inset-top, 0px));
+    --edge-b: max(20px, env(safe-area-inset-bottom, 0px));
+    --tap: 56px;
   }
   [hidden] { display: none !important; }
+  * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
     margin: 0;
@@ -32,228 +35,293 @@
     background: var(--night);
     color: var(--ink);
     font: 16px/1.5 var(--font-ui);
-    padding-left: var(--edge-l);
-    padding-right: var(--edge-r);
     -webkit-tap-highlight-color: transparent;
   }
+  button { font: inherit; color: inherit; }
   #sky {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-    touch-action: none;
-    cursor: grab;
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    display: block; touch-action: none; cursor: grab;
   }
   #sky:active { cursor: grabbing; }
 
-  .chip {
-    position: fixed;
-    top: calc(14px + env(safe-area-inset-top, 0px));
-    left: var(--edge-l);
-    max-width: calc(100% - var(--edge-l) - var(--edge-r));
-    padding: 8px 16px;
-    border-radius: 999px;
+  .glass {
     background: var(--glass);
-    color: var(--ink);
-    font-size: 15px;
-    letter-spacing: 0.01em;
-    font-variant-numeric: tabular-nums;
-    backdrop-filter: blur(6px);
+    border: 1px solid var(--glass-line);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
   }
-  .demo-tag {
-    position: fixed;
-    top: calc(14px + env(safe-area-inset-top, 0px));
-    right: var(--edge-r);
-    padding: 6px 12px;
-    border: 1px solid var(--line);
+
+  /* Pills: toggles are glass and turn gold when on; segment items are clear when off. */
+  .pill {
+    flex: none;
+    min-height: var(--tap);
+    padding: 0 22px;
+    border: 1px solid var(--glass-line);
     border-radius: 999px;
-    color: var(--ink-dim);
-    font-size: 12px;
-    letter-spacing: 0.06em;
     background: var(--glass);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    font-size: 16px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, color .15s;
+  }
+  .pill:hover { background: rgba(30, 40, 66, 0.85); }
+  .pill.on, .seg button.on { background: var(--gold); color: var(--gold-ink); font-weight: 700; border-color: transparent; }
+  .pill:focus-visible, .seg button:focus-visible, .primary:focus-visible, .ghost:focus-visible, .item:focus-visible {
+    outline: 2px solid var(--gold); outline-offset: 2px;
+  }
+  .primary {
+    min-height: 64px;
+    padding: 0 28px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--gold);
+    color: var(--gold-ink);
+    font-weight: 700;
+    font-size: 18px;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(242, 196, 109, 0.25);
+  }
+  .primary:hover { filter: brightness(1.06); }
+  .ghost {
+    min-height: var(--tap);
+    padding: 0 20px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 999px;
+    background: transparent;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .ghost:hover { background: rgba(255, 255, 255, 0.06); }
+
+  /* Time card */
+  .timecard {
+    position: fixed;
+    top: var(--edge-t);
+    left: var(--edge-l);
+    padding: 14px 22px 16px;
+    border-radius: 22px;
+    max-width: calc(100% - var(--edge-l) - var(--edge-r));
+  }
+  #clock { font-size: 40px; font-weight: 300; line-height: 1.1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  #date { color: var(--ink-dim); font-size: 14px; }
+  #place {
+    display: block;
+    margin: 4px 0 0;
+    padding: 4px 0;
+    border: 0;
+    background: none;
+    color: var(--gold);
+    font-size: 17px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+  }
+  #back-now {
+    margin-top: 10px;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--gold);
+    color: var(--gold-ink);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  /* Web demo only: try the driving lock. Kept small and out of the way. */
+  .demo-drive {
+    position: fixed; right: var(--edge-r); bottom: calc(var(--edge-b) + 18px);
+    padding: 8px 0; border: 0; background: none; color: var(--ink-dim);
+    font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+  }
+
+  /* View controls */
+  .controls {
+    position: fixed;
+    top: var(--edge-t);
+    right: var(--edge-r);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .seg { display: flex; padding: 5px; border-radius: 999px; }
+  .seg button {
+    min-height: 46px;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 16px;
   }
 
   #daylight {
     position: fixed;
-    top: calc(64px + env(safe-area-inset-top, 0px));
+    top: calc(var(--edge-t) + 96px);
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 14px;
+    gap: 16px;
     align-items: center;
-    padding: 8px 8px 8px 18px;
-    border-radius: var(--radius);
-    background: var(--glass-strong);
-    max-width: calc(100% - var(--edge-l) - var(--edge-r));
+    padding: 8px 8px 8px 24px;
+    border-radius: 999px;
+    max-width: calc(100% - 32px);
   }
+  #daylight .primary { min-height: 48px; font-size: 15px; padding: 0 20px; box-shadow: none; }
 
-  .bar {
+  /* Bottom row */
+  #stories { position: fixed; left: var(--edge-l); bottom: var(--edge-b); }
+  .dock {
     position: fixed;
-    left: var(--edge-l);
-    right: var(--edge-r);
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    bottom: var(--edge-b);
+    transform: translateX(-50%);
     display: flex;
-    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    padding: 6px;
+    border-radius: 999px;
   }
-  .bar-inner {
-    display: flex;
-    gap: 8px;
-    padding: 8px;
-    border-radius: calc(var(--radius) + 6px);
-    background: var(--glass);
-    backdrop-filter: blur(6px);
-    overflow-x: auto;
-    max-width: 100%;
-    scrollbar-width: none;
+  .dock .step {
+    min-height: 52px; min-width: 52px; padding: 0 16px;
+    border: 0; border-radius: 999px; background: transparent; cursor: pointer; font-size: 15px;
   }
-  .bar-inner::-webkit-scrollbar { display: none; }
-  .divider { width: 1px; align-self: stretch; margin: 6px 2px; background: var(--line); flex: none; }
+  .dock .step:hover { background: rgba(255, 255, 255, 0.06); }
+  .dock .step.on { background: var(--gold); color: var(--gold-ink); font-weight: 700; }
 
-  .btn {
-    flex: none;
-    min-height: 56px;
-    min-width: 88px;
-    padding: 0 18px;
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--button);
-    color: var(--ink);
-    font: 500 16px var(--font-ui);
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .btn:hover { background: var(--button-hover); }
-  .btn:focus-visible { outline: 2px solid var(--starlight); outline-offset: 2px; }
-  .btn.secondary { background: transparent; border: 1px solid var(--line); }
-  .btn.drive { color: var(--ink-dim); }
-
+  /* Detail panel */
   #panel {
     position: fixed;
-    top: calc(14px + env(safe-area-inset-top, 0px));
+    top: calc(var(--edge-t) + 84px);
     right: var(--edge-r);
-    bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--edge-b) + 88px);
     width: min(440px, calc(100% - var(--edge-l) - var(--edge-r)));
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 24px;
-    box-sizing: border-box;
-    border-radius: calc(var(--radius) + 6px);
+    gap: 6px;
+    padding: 24px 24px 20px 28px;
+    border-radius: 26px;
     background: var(--glass-strong);
-    backdrop-filter: blur(10px);
   }
+  .panel-head { display: flex; gap: 12px; align-items: flex-start; }
   #panel-title {
-    margin: 0;
-    font: 700 28px/1.25 var(--font-ui);
+    flex: 1;
+    margin: 6px 0 0;
+    font: 700 28px/1.25 var(--font-story);
     text-wrap: balance;
   }
-  #panel-subtitle { margin: 0; color: var(--starlight); font-size: 14px; letter-spacing: 0.02em; }
+  #panel-close {
+    flex: none; width: 48px; height: 48px; border: 0; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08); color: var(--ink-dim); cursor: pointer; font-size: 18px;
+  }
+  #panel-close:hover { background: rgba(255, 255, 255, 0.14); color: var(--ink); }
+  #panel-subtitle { margin: 0 0 8px; color: var(--gold); font-size: 14px; letter-spacing: 0.02em; }
   #panel-body {
-    margin: 4px 0 0;
+    margin: 0;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     white-space: pre-line;
-    font-size: 18px;
-    line-height: 1.7;
+    font-size: 17px;
+    line-height: 1.75;
   }
-  #panel-body.story { font: 400 21px/1.85 var(--font-story); }
-  #panel-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
-  #panel-actions .btn { width: 100%; }
+  #panel-body.story { font: 400 20px/1.9 var(--font-story); }
+  #panel-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
   #panel-actions .row { display: flex; gap: 8px; }
-  #panel-actions .row .btn { flex: 1; min-width: 0; }
+  #panel-actions .row > * { flex: 1; min-width: 0; }
+  #panel-actions .item {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    min-height: 72px; padding: 12px 20px; text-align: left; cursor: pointer;
+    border: 1px solid var(--glass-line); border-radius: 18px; background: rgba(255, 255, 255, 0.04);
+  }
+  #panel-actions .item:hover { background: rgba(255, 255, 255, 0.08); }
+  #panel-actions .item b { font-size: 18px; font-weight: 500; }
+  #panel-actions .item span { font-size: 13px; color: var(--ink-dim); }
 
   #driving {
-    position: fixed;
-    inset: 0;
-    display: grid;
-    place-content: center;
-    gap: 20px;
-    padding: 24px var(--edge-r) 24px var(--edge-l);
-    text-align: center;
-    background: rgba(0, 0, 0, 0.94);
-    font-size: 24px;
-    line-height: 1.6;
+    position: fixed; inset: 0; display: grid; place-content: center; gap: 20px;
+    padding: 24px; text-align: center; background: rgba(5, 8, 16, 0.95);
+    font-size: 24px; line-height: 1.6;
   }
   #driving p { margin: 0; max-width: 34ch; }
   #driving .gear { font-size: 13px; letter-spacing: 0.2em; color: var(--ink-dim); }
-
   #toast {
-    position: fixed;
-    left: 50%;
-    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
-    transform: translateX(-50%);
-    width: max-content;
-    max-width: min(640px, calc(100% - var(--edge-l) - var(--edge-r)));
-    padding: 12px 18px;
-    border-radius: 14px;
-    background: var(--glass-strong);
-    font-size: 15px;
-    text-align: center;
+    position: fixed; left: 50%; bottom: calc(var(--edge-b) + 92px); transform: translateX(-50%);
+    width: max-content; max-width: min(640px, calc(100% - 32px));
+    padding: 12px 20px; border-radius: 16px; background: var(--glass-strong); font-size: 15px; text-align: center;
   }
   #loading {
-    position: fixed;
-    inset: 0;
-    display: grid;
-    place-content: center;
-    color: var(--ink-dim);
-    letter-spacing: 0.04em;
+    position: fixed; inset: 0; display: grid; place-content: center; color: var(--ink-dim); letter-spacing: 0.04em;
   }
 
-  @media (max-width: 720px) {
-    .chip { font-size: 13px; padding: 6px 12px; }
-    .demo-tag { display: none; }
-    .btn { min-height: 48px; min-width: 72px; padding: 0 14px; font-size: 14px; }
-    .bar { justify-content: flex-start; }
+  /* Narrower screens: stack the top controls, move stories and Gleo above the dock, panel as a sheet. */
+  @media (max-width: 900px) {
+    :root { --edge-l: max(16px, env(safe-area-inset-left, 0px)); --edge-r: max(16px, env(safe-area-inset-right, 0px));
+            --edge-t: max(12px, env(safe-area-inset-top, 0px)); --edge-b: max(12px, env(safe-area-inset-bottom, 0px)); --tap: 46px; }
+    .timecard { padding: 10px 16px 12px; border-radius: 18px; }
+    #clock { font-size: 28px; }
+    .controls { top: auto; bottom: calc(var(--edge-b) + 136px); right: var(--edge-r); left: var(--edge-l); flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .seg button { min-height: 38px; padding: 0 14px; font-size: 14px; }
+    .pill { padding: 0 16px; font-size: 14px; }
+    .dock { left: var(--edge-l); right: var(--edge-r); transform: none; justify-content: space-between; }
+    .dock .step { min-width: 44px; min-height: 44px; padding: 0 10px; font-size: 13px; }
+    #stories { bottom: calc(var(--edge-b) + 72px); min-height: 52px; font-size: 15px; padding: 0 20px; }
+    .demo-drive { bottom: calc(var(--edge-b) + 84px); }
+    #daylight { top: auto; bottom: calc(var(--edge-b) + 196px); flex-direction: column; gap: 8px; padding: 12px; border-radius: 20px; text-align: center; }
     #panel {
-      top: auto;
-      left: var(--edge-l);
-      right: var(--edge-r);
-      width: auto;
-      bottom: calc(86px + env(safe-area-inset-bottom, 0px));
-      max-height: 58%;
-      padding: 18px;
+      top: auto; left: var(--edge-l); right: var(--edge-r); width: auto;
+      bottom: calc(var(--edge-b) + 72px); max-height: 62%; padding: 18px 18px 16px 20px;
     }
     #panel-title { font-size: 22px; }
-    #panel-body.story { font-size: 18px; }
-    #daylight { flex-direction: column; align-items: stretch; text-align: center; padding: 10px; }
+    #panel-body.story { font-size: 17px; }
+    #toast { bottom: calc(var(--edge-b) + 200px); }
   }
   @media (prefers-reduced-motion: reduce) {
-    * { scroll-behavior: auto; }
+    .pill { transition: none; }
   }
 </style>
 
 <canvas id="sky" aria-label="지금 이 자리의 밤하늘. 끌어서 둘러보고, 휠이나 두 손가락으로 확대하고, 별을 눌러 보세요."></canvas>
 <div id="loading">하늘을 그리는 중…</div>
 
-<div class="chip" id="status" aria-live="polite">영양 국제밤하늘보호공원</div>
-<div class="demo-tag">PLEOS CONNECT · 웹 데모</div>
+<section class="timecard glass" aria-live="polite">
+  <div id="clock">--:--</div>
+  <div id="date"></div>
+  <button id="place" type="button">영양 국제밤하늘보호공원 ▾</button>
+  <button id="back-now" type="button" hidden>시간 이동 중 · 지금으로</button>
+</section>
 
-<div id="daylight" hidden>
-  <span>지금은 하늘이 밝아서 별이 잘 안 보여요</span>
-  <button class="btn" id="tonight" type="button">오늘 밤 9시 하늘 보기</button>
-</div>
+<button class="demo-drive" id="drive" type="button">웹 데모 · 주행 시작해 보기</button>
 
-<nav class="bar" aria-label="조작">
-  <div class="bar-inner">
-    <button class="btn" id="now" type="button">지금</button>
-    <button class="btn" id="minus" type="button">−1시간</button>
-    <button class="btn" id="plus" type="button">+1시간</button>
-    <button class="btn" id="play" type="button">▶ 빠르게</button>
-    <span class="divider"></span>
-    <button class="btn" id="mode" type="button">선루프 보기</button>
-    <button class="btn" id="night" type="button">관측 모드</button>
-    <button class="btn" id="lines" type="button">별자리 선</button>
-    <button class="btn" id="stories" type="button">별자리 이야기</button>
-    <button class="btn" id="place" type="button">장소</button>
-    <span class="divider"></span>
-    <button class="btn drive" id="drive" type="button">주행 시작해 보기</button>
+<nav class="controls" aria-label="보기">
+  <div class="seg glass" role="group" aria-label="보는 방향">
+    <button id="seg-windshield" class="on" type="button" aria-pressed="true">앞유리</button>
+    <button id="seg-sunroof" type="button" aria-pressed="false">선루프</button>
   </div>
+  <button class="pill" id="lines" type="button" aria-pressed="false">별자리 선</button>
+  <button class="pill" id="night" type="button" aria-pressed="false">관측 모드</button>
 </nav>
 
+<div id="daylight" class="glass" hidden>
+  <span>지금은 하늘이 밝아서 별이 잘 안 보여요</span>
+  <button class="primary" id="tonight" type="button">오늘 밤 9시 하늘 보기</button>
+</div>
+
+<button class="primary" id="stories" type="button">✦ 별자리 이야기</button>
+
+<div class="dock glass" role="group" aria-label="시간">
+  <button class="step" id="minus" type="button">−1시간</button>
+  <button class="step" id="plus" type="button">+1시간</button>
+  <button class="step" id="play" type="button">▶ 빠르게</button>
+</div>
+
 <aside id="panel" hidden>
-  <h2 id="panel-title"></h2>
+  <div class="panel-head">
+    <h2 id="panel-title"></h2>
+    <button id="panel-close" type="button" aria-label="닫기">✕</button>
+  </div>
   <p id="panel-subtitle"></p>
   <p id="panel-body"></p>
   <div id="panel-actions"></div>
@@ -264,7 +332,7 @@
 <div id="driving" hidden>
   <span class="gear">기어 D · 주행 중</span>
   <p>운전 중에는 별을 볼 수 없어요.<br>안전한 곳에 차를 세우면 보던 하늘을 이어서 보여 드릴게요.</p>
-  <div><button class="btn" id="park" type="button">정차하기 (기어 P)</button></div>
+  <div><button class="primary" id="park" type="button">정차하기 (기어 P)</button></div>
 </div>
 
 <script src="byeolmajung.js" charset="utf-8"></script>

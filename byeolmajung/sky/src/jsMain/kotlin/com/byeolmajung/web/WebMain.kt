@@ -70,6 +70,7 @@ private class WebApp {
     private var restricted = false
     private var options = SceneOptions(skyQuality = place.skyQuality)
     private var lightsOff = false
+    private var selected: SkyObject? = null
     private var activeStory: Story? = null
     private var storyPage = 0
 
@@ -279,15 +280,16 @@ private class WebApp {
     // --- Controls ---
 
     private fun wireControls() {
-        button("now") { timeOffset = 0.0; fastForward = false; text("play", "▶ 빠르게"); animateTo(0.0, DEFAULT_ALTITUDE); refreshSky() }
-        button("minus") { timeOffset -= 3_600_000.0; refreshSky() }
-        button("plus") { timeOffset += 3_600_000.0; refreshSky() }
-        button("play") { fastForward = !fastForward; text("play", if (fastForward) "■ 멈춤" else "▶ 빠르게") }
-        button("mode") { toggleMode() }
+        button("back-now") { timeOffset = 0.0; setFastForward(false); animateTo(0.0, DEFAULT_ALTITUDE); refreshSky() }
+        button("minus") { timeOffset -= HOUR; refreshSky() }
+        button("plus") { timeOffset += HOUR; refreshSky() }
+        button("play") { setFastForward(!fastForward) }
+        button("seg-windshield") { setMode(ViewMode.WINDSHIELD) }
+        button("seg-sunroof") { setMode(ViewMode.SUNROOF) }
         button("night") { toggleLights() }
         button("lines") {
             options = options.copy(showConstellations = !options.showConstellations)
-            text("lines", if (options.showConstellations) "별자리 선 끄기" else "별자리 선")
+            setOn("lines", options.showConstellations)
             redraw()
         }
         button("stories") { showStoryList() }
@@ -295,12 +297,26 @@ private class WebApp {
         button("tonight") { jumpToTonight() }
         button("drive") { setRestricted(true) }
         button("park") { setRestricted(false) }
+        button("panel-close") { closePanel() }
     }
 
-    private fun toggleMode() {
-        mode = if (mode == ViewMode.WINDSHIELD) ViewMode.SUNROOF else ViewMode.WINDSHIELD
+    private fun setFastForward(on: Boolean) {
+        fastForward = on
+        text("play", if (on) "❚❚ 멈춤" else "▶ 빠르게")
+        el<HTMLElement>("play").classList.toggle("on", on)
+    }
+
+    private fun setOn(id: String, on: Boolean) {
+        el<HTMLElement>(id).classList.toggle("on", on)
+        el<HTMLElement>(id).setAttribute("aria-pressed", on.toString())
+    }
+
+    private fun setMode(m: ViewMode) {
+        if (mode == m) return
+        mode = m
         fov = if (mode == ViewMode.SUNROOF) 180.0 else DEFAULT_FOV
-        text("mode", if (mode == ViewMode.SUNROOF) "앞유리 보기" else "선루프 보기")
+        setOn("seg-windshield", mode == ViewMode.WINDSHIELD)
+        setOn("seg-sunroof", mode == ViewMode.SUNROOF)
         if (mode == ViewMode.SUNROOF) toast("선루프 가림막을 열고 머리 위 하늘을 보여 드려요 (실제 차에서는 가림막이 자동으로 열려요)")
         updateStatus()
         redraw()
@@ -309,7 +325,7 @@ private class WebApp {
     /** Stargazing mode: turn every light in the car off so eyes adapt to the dark. The web demo can only announce it. */
     private fun toggleLights() {
         lightsOff = !lightsOff
-        text("night", if (lightsOff) "관측 모드 끄기" else "관측 모드")
+        setOn("night", lightsOff)
         toast(
             if (lightsOff) "실내등, 독서등, 무드등을 모두 껐어요. 눈이 어둠에 익으면 별이 더 많이 보여요. (웹 데모에서는 안내만 해요)"
             else "조명을 원래대로 켰어요",
@@ -320,8 +336,8 @@ private class WebApp {
         restricted = r
         el<HTMLElement>("driving").hidden = !r
         if (r) {
-            fastForward = false
-            text("play", "▶ 빠르게")
+            setFastForward(false)
+            stopSpeech()
         }
         refreshSky()
     }
@@ -344,9 +360,10 @@ private class WebApp {
         }
         val d = localDate(t)
         val hour = d.getUTCHours()
-        val clock = "${if (hour < 12) "오전" else "오후"} ${if (hour % 12 == 0) 12 else hour % 12}:${d.getUTCMinutes().toString().padStart(2, '0')}"
-        val facing = if (mode == ViewMode.SUNROOF) "머리 위 하늘" else "${Describe.compass(viewAzimuth)}쪽 하늘"
-        text("status", "${place.name}  ·  $day $clock  ·  $facing" + if (timeOffset != 0.0) "  (시간 이동 중)" else "")
+        text("clock", "${if (hour < 12) "오전" else "오후"} ${if (hour % 12 == 0) 12 else hour % 12}:${d.getUTCMinutes().toString().padStart(2, '0')}")
+        text("date", "$day · ${"일월화수목금토"[d.getUTCDay()]}요일")
+        text("place", "${place.name} ▾")
+        el<HTMLElement>("back-now").hidden = timeOffset == 0.0
     }
 
     private fun localDate(millis: Double) = Date(millis + utcOffsetMinutes * 60_000.0)
@@ -356,14 +373,19 @@ private class WebApp {
 
     private fun onSelect(obj: SkyObject?) {
         val cat = catalog ?: return
-        options = options.copy(selected = obj, highlightConstellations = activeStory?.constellations?.toSet().orEmpty())
+        stopSpeech()
+        selected = obj
+        activeStory = null
+        options = options.copy(selected = obj, highlightConstellations = emptySet())
         redraw()
         if (obj == null) return closePanel()
-        val d = Describe.of(obj, cat, positionOf(obj))
-        activeStory = null
+        val position = positionOf(obj)
+        val d = Describe.of(obj, cat, position)
         showPanel(d.title, d.subtitle, d.body)
-        d.story?.let { story -> addPanelButton("'${story.title}' 이야기 듣기") { startStory(story) } }
-        addPanelButton("닫기", secondary = true) { onSelect(null) }
+        listenButton = addPanelButton(LISTEN, kind = "primary") {
+            if (speaking) stopSpeech() else speak(Describe.narration(obj, cat, position))
+        }
+        d.story?.let { story -> addPanelButton("'${story.title}' 이야기 보기", kind = "ghost") { startStory(story) } }
     }
 
     private fun positionOf(obj: SkyObject): Horizontal? = snapshot?.let { snap ->
@@ -375,12 +397,14 @@ private class WebApp {
     }
 
     private fun showStoryList() {
+        stopSpeech()
         showPanel("별자리 이야기", "이야기를 고르면 하늘에서 그 별자리를 찾아 드려요", "")
-        Stories.all.forEach { story -> addPanelButton("${story.title}  ·  ${story.season}") { startStory(story) } }
-        addPanelButton("닫기", secondary = true) { closePanel() }
+        Stories.all.forEach { story -> addItem(story.title, "${story.season} 별자리") { startStory(story) } }
     }
 
-    private fun startStory(story: Story) {
+    private fun startStory(story: Story, readAloud: Boolean = false) {
+        stopSpeech()
+        selected = null
         activeStory = story
         storyPage = 0
         options = options.copy(selected = null, highlightConstellations = story.constellations.toSet())
@@ -398,35 +422,66 @@ private class WebApp {
             }
         }
         showStoryPage()
+        if (readAloud) readStory()
         redraw()
     }
 
     private fun showStoryPage() {
         val story = activeStory ?: return
         showPanel(story.title, "${story.season} 별자리 이야기  ·  ${storyPage + 1} / ${story.pages.size}", story.pages[storyPage], storyText = true)
+        listenButton = addPanelButton(if (readingStory) STOP else LISTEN_STORY, kind = "primary") {
+            if (readingStory || speaking) stopSpeech() else readStory()
+        }
         val row = document.createElement("div") as HTMLElement
         row.className = "row"
         el<HTMLElement>("panel-actions").appendChild(row)
-        if (storyPage > 0) addPanelButton("이전", into = row) { storyPage--; showStoryPage() }
+        if (storyPage > 0) addPanelButton("이전", kind = "ghost", into = row) { turnPage(-1) }
         if (storyPage < story.pages.lastIndex) {
-            addPanelButton("다음", into = row) { storyPage++; showStoryPage() }
+            addPanelButton("다음", kind = "ghost", into = row) { turnPage(1) }
         } else {
-            addPanelButton("다른 이야기", into = row) { showStoryList() }
+            addPanelButton("다른 이야기", kind = "ghost", into = row) { showStoryList() }
         }
-        addPanelButton("닫기", secondary = true) { closePanel() }
+    }
+
+    private fun turnPage(delta: Int) {
+        stopSpeech()
+        storyPage += delta
+        showStoryPage()
+    }
+
+    /** Reads the story aloud from the current page, turning pages as it goes. */
+    private fun readStory() {
+        val story = activeStory ?: return
+        readingStory = true
+        listenButton?.textContent = STOP
+        speak(story.pages[storyPage]) {
+            if (readingStory && activeStory == story && storyPage < story.pages.lastIndex) {
+                storyPage++
+                showStoryPage()
+                readStory()
+            } else {
+                readingStory = false
+                listenButton?.textContent = LISTEN_STORY
+            }
+        }
     }
 
     private fun choosePlace() {
-        showPanel("장소 선택", "웹 데모에서는 차 위치 대신 장소를 골라요. 장소마다 하늘의 밝기(도시 불빛)도 달라요.", "")
+        stopSpeech()
+        showPanel("어디서 볼까요?", "웹 데모에서는 차 위치 대신 장소를 골라요. 장소마다 하늘의 밝기(도시 불빛)도 달라요.", "")
         places.forEach { p ->
-            addPanelButton(p.name) {
+            val darkness = when {
+                p.skyQuality < 0.2 -> "아주 어두운 하늘"
+                p.skyQuality < 0.5 -> "꽤 어두운 하늘"
+                else -> "도시의 밝은 하늘"
+            }
+            addItem(p.name, darkness) {
                 place = p
                 options = options.copy(skyQuality = p.skyQuality)
                 closePanel()
                 refreshSky()
             }
         }
-        addPanelButton("닫기", secondary = true) { closePanel() }
     }
 
     private fun showPanel(title: String, subtitle: String, body: String, storyText: Boolean = false) {
@@ -438,22 +493,93 @@ private class WebApp {
         bodyEl.hidden = body.isEmpty()
         bodyEl.classList.toggle("story", storyText)
         el<HTMLElement>("panel-actions").innerHTML = ""
+        listenButton = null
         el<HTMLElement>("panel").hidden = false
     }
 
     private fun closePanel() {
+        stopSpeech()
         el<HTMLElement>("panel").hidden = true
         activeStory = null
+        selected = null
+        listenButton = null
         options = options.copy(selected = null, highlightConstellations = emptySet())
         redraw()
     }
 
-    private fun addPanelButton(label: String, secondary: Boolean = false, into: HTMLElement? = null, onClick: () -> Unit) {
+    private fun addPanelButton(label: String, kind: String, into: HTMLElement? = null, onClick: () -> Unit): HTMLButtonElement {
         val b = document.createElement("button") as HTMLButtonElement
+        b.type = "button"
         b.textContent = label
-        b.className = if (secondary) "btn secondary" else "btn"
+        b.className = kind
         b.onclick = { onClick() }
         (into ?: el("panel-actions")).appendChild(b)
+        return b
+    }
+
+    /** A two-line choice in the panel, such as a story or a place. */
+    private fun addItem(title: String, detail: String, onClick: () -> Unit) {
+        val b = document.createElement("button") as HTMLButtonElement
+        b.type = "button"
+        b.className = "item"
+        b.appendChild((document.createElement("b") as HTMLElement).apply { textContent = title })
+        b.appendChild((document.createElement("span") as HTMLElement).apply { textContent = detail })
+        b.onclick = { onClick() }
+        el<HTMLElement>("panel-actions").appendChild(b)
+    }
+
+    // --- 설명 듣기: the browser's speech synthesis stands in for the car's text-to-speech ---
+
+    private val synth: dynamic get() = window.asDynamic().speechSynthesis
+    private var speaking = false
+    private var readingStory = false
+    private var speechToken = 0
+    private var listenButton: HTMLButtonElement? = null
+
+    /**
+     * Speaks [text] in Korean and calls [onEnd] when it finishes (not when stopped). Long text goes sentence by
+     * sentence, since some browsers cut a single long utterance short.
+     */
+    private fun speak(text: String, onEnd: () -> Unit = {}) {
+        val s = synth
+        if (s == null || s == undefined) {
+            toast("이 브라우저에서는 소리 내어 읽기를 할 수 없어요")
+            return
+        }
+        s.cancel()
+        val token = ++speechToken
+        val voices = (s.getVoices() as Array<dynamic>)
+        val korean = voices.firstOrNull { (it.lang as String).startsWith("ko") }
+        val sentences = text.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotBlank() }
+        speaking = true
+        listenButton?.textContent = STOP
+        sentences.forEachIndexed { i, sentence ->
+            val u: dynamic = js("new SpeechSynthesisUtterance()")
+            u.text = sentence
+            u.lang = "ko-KR"
+            u.rate = 0.95
+            if (korean != null) u.voice = korean
+            if (i == sentences.lastIndex) {
+                u.onend = {
+                    if (token == speechToken) {
+                        speaking = false
+                        if (!readingStory) listenButton?.textContent = if (activeStory != null) LISTEN_STORY else LISTEN
+                        onEnd()
+                    }
+                }
+            }
+            s.speak(u)
+        }
+    }
+
+    private fun stopSpeech() {
+        speechToken++
+        readingStory = false
+        if (speaking) {
+            speaking = false
+            synth?.cancel()
+        }
+        listenButton?.textContent = if (activeStory != null) LISTEN_STORY else LISTEN
     }
 
     private var toastTimer = 0
@@ -484,5 +610,9 @@ private class WebApp {
         const val DEFAULT_ALTITUDE = 15.0
         const val HOUR = 3_600_000.0
         const val DAY = 24 * HOUR
+
+        const val LISTEN = "▶ 설명 듣기"
+        const val LISTEN_STORY = "▶ 이야기 듣기"
+        const val STOP = "■ 그만 듣기"
     }
 }

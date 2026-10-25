@@ -130,6 +130,24 @@ class StoryTest {
     }
 
     @Test
+    fun koreanParticlesFollowTheFinalConsonant() {
+        assertEquals("는", Describe.josa("시리우스", "은", "는"))
+        assertEquals("은", Describe.josa("직녀성", "은", "는"))
+        assertEquals("예요", Describe.josa("거문고자리", "이에요", "예요"))
+        assertEquals("이에요", Describe.josa("목성", "이에요", "예요"))
+    }
+
+    @Test
+    fun narrationUsesTheStarLegendThenTheConstellation() {
+        val vega = Star(91262, Equatorial(279.2346, 38.78369), 0.03, 0.0, "Lyr", "Vega", 25)
+        val lyra = Constellation("Lyr", "거문고자리", "Lyra", Equatorial(283.0, 36.0), emptyList())
+        val catalog = SkyCatalog(listOf(vega), listOf(lyra))
+        val text = Describe.narration(SkyObject.StarObject(0, vega), catalog, Horizontal(70.0, 200.0))
+        assertTrue(text.startsWith("직녀성은 거문고자리에 있는 별이에요. 지금 남쪽 하늘에 떠 있어요."), text)
+        assertTrue("오작교" in text, text)
+    }
+
+    @Test
     fun everyStoryPointsAtKnownConstellations() {
         val abbrs = setOf("Lyr", "Aql", "UMa", "Ori", "Sco", "Per", "And", "Cas", "Cep")
         Stories.all.forEach { story -> story.constellations.forEach { assertTrue(it in abbrs) } }
