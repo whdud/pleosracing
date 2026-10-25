@@ -44,6 +44,42 @@ class SkyPreviewTest {
         assertTrue(catalog.constellation("Ori")?.nameKo == "오리온자리")
     }
 
+    private val moonMap: SkyTexture by lazy {
+        val img = ImageIO.read(File(System.getProperty("assets.dir"), "sky/moon.jpg"))
+        SkyTexture(img.width, img.height, img.getRGB(0, 0, img.width, img.height, null, 0, img.width))
+    }
+
+    /** Phases as seen facing south (north up, west to the right), plus the Moon from real frames over a month. */
+    @Test
+    fun moonPreview() {
+        val size = 220
+        val out = BufferedImage(size * 6 + 70, size * 2 + 60, BufferedImage.TYPE_INT_RGB)
+        val g = out.createGraphics()
+        g.color = Color(0x0B1020)
+        g.fillRect(0, 0, out.width, out.height)
+        listOf(0.06, 0.25, 0.5, 0.75, 0.93, 1.0).forEachIndexed { i, phase ->
+            val px = MoonSprite.render(size, moonMap, phase, north = -Math.PI / 2, sun = 0.0, west = 0.0)
+            val img = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB).apply { setRGB(0, 0, size, size, px, 0, size) }
+            g.drawImage(img, 10 + i * (size + 10), 10, null)
+        }
+        // Real evenings: every 4 days from a new Moon, 19:00 in Korea, the view turned toward the Moon.
+        val start = ZonedDateTime.parse("2026-11-09T19:00:00+09:00")
+        for (i in 0 until 6) {
+            val t = start.plusDays(3L + 4 * i)
+            val snap = SkySnapshot.compute(catalog, t.toInstant().toEpochMilli(), yeongyang)
+            val (moon, h) = snap.bodies.first { it.first.kind == BodyKind.MOON }
+            val camera = Camera(ViewMode.WINDSHIELD, h.az, h.alt.coerceAtLeast(5.0), 6.0, size, size)
+            val disc = SkyScene.build(snap, camera).bodies.firstOrNull { it.kind == BodyKind.MOON } ?: continue
+            val px = MoonSprite.render(size / 2, moonMap, disc.phase, disc.north.toDouble(), disc.sun.toDouble(), disc.west.toDouble())
+            val img = BufferedImage(size / 2, size / 2, BufferedImage.TYPE_INT_ARGB).apply { setRGB(0, 0, size / 2, size / 2, px, 0, size / 2) }
+            g.drawImage(img, 10 + i * (size + 10) + size / 4, size + 40, null)
+            g.color = Color(0x8E9BB3)
+            g.drawString("${t.toLocalDate()} alt ${h.alt.toInt()}° ${(moon.phase * 100).toInt()}%", 10 + i * (size + 10), size + 30)
+        }
+        g.dispose()
+        ImageIO.write(out, "png", File(outDir, "moon.png"))
+    }
+
     @Test
     fun constellationArtSitsOnItsAnchorStars() {
         assertTrue(catalog.art.size >= 80)

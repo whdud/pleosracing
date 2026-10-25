@@ -17,6 +17,8 @@ import com.byeolmajung.sky.ArtPlacement
 import com.byeolmajung.sky.BackgroundImage
 import com.byeolmajung.sky.BodyDisc
 import com.byeolmajung.sky.BodyKind
+import com.byeolmajung.sky.MoonSprite
+import com.byeolmajung.sky.SkyTexture
 import com.byeolmajung.sky.SkyFrame
 import com.byeolmajung.sky.StarDot
 import kotlin.math.abs
@@ -180,13 +182,35 @@ class SkyCanvasRenderer(private val loadArt: (String) -> Bitmap? = { null }) {
         }
     }
 
+    /** The photographic Moon map for [MoonSprite]; without it the Moon is drawn as a plain phase disc. */
+    var moonMap: SkyTexture? = null
+
+    private var moonSprite: Bitmap? = null
+    private var moonKey = ""
+
     private fun drawBody(canvas: Canvas, b: BodyDisc) {
         if (b.kind == BodyKind.MOON || b.kind == BodyKind.SUN) {
             val r = b.radius * 7f
             val rgb = b.color and 0x00FFFFFF
-            fill.shader = RadialGradient(b.x, b.y, r, intArrayOf(rgb or (120 shl 24), rgb or (40 shl 24), rgb), floatArrayOf(0f, 0.25f, 1f), Shader.TileMode.CLAMP)
+            // The Moon's glow grows with its phase; a thin crescent barely lights the sky around it.
+            val glow = if (b.kind == BodyKind.MOON) (0.25 + 0.75 * b.phase).toFloat() else 1f
+            fill.shader = RadialGradient(b.x, b.y, r, intArrayOf(rgb or ((110 * glow).toInt() shl 24), rgb or ((34 * glow).toInt() shl 24), rgb), floatArrayOf(0f, 0.25f, 1f), Shader.TileMode.CLAMP)
             canvas.drawCircle(b.x, b.y, r, fill)
             fill.shader = null
+        }
+        val map = moonMap
+        if (b.kind == BodyKind.MOON && map != null) {
+            val size = (b.radius * 2).toInt().coerceAtLeast(8)
+            // Re-render only when the size, phase or orientation visibly changes.
+            val key = "$size|${(b.phase * 200).toInt()}|${(b.north * 60).toInt()}|${(b.sun * 60).toInt()}|${(b.west * 60).toInt()}"
+            if (key != moonKey || moonSprite == null) {
+                val px = MoonSprite.render(size, map, b.phase, b.north.toDouble(), b.sun.toDouble(), b.west.toDouble())
+                moonSprite = Bitmap.createBitmap(px, size, size, Bitmap.Config.ARGB_8888)
+                moonKey = key
+            }
+            spriteDst.set(b.x - b.radius, b.y - b.radius, b.x + b.radius, b.y + b.radius)
+            canvas.drawBitmap(moonSprite!!, null, spriteDst, bitmapPaint)
+            return
         }
         if (b.kind != BodyKind.MOON) {
             fill.color = b.color

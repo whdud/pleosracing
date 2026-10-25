@@ -4,6 +4,8 @@ import com.byeolmajung.sky.ArtPlacement
 import com.byeolmajung.sky.BackgroundImage
 import com.byeolmajung.sky.BodyDisc
 import com.byeolmajung.sky.BodyKind
+import com.byeolmajung.sky.MoonSprite
+import com.byeolmajung.sky.SkyTexture
 import com.byeolmajung.sky.SkyFrame
 import com.byeolmajung.sky.StarDot
 import kotlinx.browser.document
@@ -83,6 +85,37 @@ class WebRenderer(private val onArtLoaded: () -> Unit = {}) {
         ctx.setTransform(art.a / w, art.b / w, art.c / h, art.d / h, art.e.toDouble(), art.f.toDouble())
         ctx.drawImage(img, 0.0, 0.0)
         ctx.restore()
+    }
+
+    /** The photographic Moon map for [MoonSprite]; without it the Moon is drawn as a plain phase disc. */
+    var moonMap: SkyTexture? = null
+
+    private var moonCanvas: HTMLCanvasElement? = null
+    private var moonKey = ""
+
+    private fun drawMoon(ctx: CanvasRenderingContext2D, b: BodyDisc, map: SkyTexture) {
+        val size = (b.radius * 2).toInt().coerceAtLeast(8)
+        // Re-render only when the size, phase or orientation visibly changes.
+        val key = "$size|${(b.phase * 200).toInt()}|${(b.north * 60).toInt()}|${(b.sun * 60).toInt()}|${(b.west * 60).toInt()}"
+        if (key != moonKey || moonCanvas == null) {
+            val px = MoonSprite.render(size, map, b.phase, b.north.toDouble(), b.sun.toDouble(), b.west.toDouble())
+            val canvas = (document.createElement("canvas") as HTMLCanvasElement).also { it.width = size; it.height = size }
+            val data = Uint8ClampedArray(size * size * 4)
+            val d = data.asDynamic()
+            for (i in px.indices) {
+                val p = px[i]
+                d[i * 4] = (p shr 16) and 0xFF
+                d[i * 4 + 1] = (p shr 8) and 0xFF
+                d[i * 4 + 2] = p and 0xFF
+                d[i * 4 + 3] = p ushr 24
+            }
+            (canvas.getContext("2d") as CanvasRenderingContext2D).putImageData(ImageData(data, size, size), 0.0, 0.0)
+            moonCanvas = canvas
+            moonKey = key
+        }
+        val r = b.radius.toDouble()
+        ctx.globalAlpha = 1.0
+        ctx.drawImage(moonCanvas!!, b.x - r, b.y - r, r * 2, r * 2)
     }
 
     private fun drawBackground(ctx: CanvasRenderingContext2D, frame: SkyFrame, bg: BackgroundImage) {
@@ -176,13 +209,17 @@ class WebRenderer(private val onArtLoaded: () -> Unit = {}) {
         val r = b.radius.toDouble()
         val rgb = b.color and 0xFFFFFF
         val halo = ctx.createRadialGradient(x, y, 0.0, x, y, r * 7)
-        halo.addColorStop(0.0, css(rgb, 0.47))
-        halo.addColorStop(0.25, css(rgb, 0.16))
+        // The Moon's glow grows with its phase; a thin crescent barely lights the sky around it.
+        val glow = if (b.kind == BodyKind.MOON) 0.25 + 0.75 * b.phase else 1.0
+        halo.addColorStop(0.0, css(rgb, 0.43 * glow))
+        halo.addColorStop(0.25, css(rgb, 0.13 * glow))
         halo.addColorStop(1.0, css(rgb, 0.0))
         ctx.fillStyle = halo
         ctx.beginPath()
         ctx.arc(x, y, r * 7, 0.0, 2 * PI)
         ctx.fill()
+        val map = moonMap
+        if (b.kind == BodyKind.MOON && map != null) return drawMoon(ctx, b, map)
         if (b.kind != BodyKind.MOON) {
             ctx.fillStyle = css(b.color)
             ctx.beginPath()

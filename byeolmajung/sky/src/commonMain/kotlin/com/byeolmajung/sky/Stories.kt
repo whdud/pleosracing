@@ -108,6 +108,8 @@ object Visibility {
 }
 
 internal object Math2 {
+    fun floorMod(a: Int, b: Int): Int = ((a % b) + b) % b
+
     fun floorDiv(a: Long, b: Long): Long {
         val q = a / b
         return if ((a % b != 0L) && ((a < 0) != (b < 0))) q - 1 else q

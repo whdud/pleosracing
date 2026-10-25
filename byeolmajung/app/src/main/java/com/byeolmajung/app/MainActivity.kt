@@ -124,14 +124,17 @@ class MainActivity : Activity() {
                 assets.open("sky/constellations.txt").bufferedReader().readText(),
                 assets.open("sky/art.txt").bufferedReader().readText(),
             )
-            val texture = android.graphics.BitmapFactory.decodeStream(assets.open("sky/milkyway.jpg")).let { bmp ->
+            fun texture(name: String) = android.graphics.BitmapFactory.decodeStream(assets.open(name)).let { bmp ->
                 val pixels = IntArray(bmp.width * bmp.height)
                 bmp.getPixels(pixels, 0, bmp.width, 0, 0, bmp.width, bmp.height)
                 SkyTexture(bmp.width, bmp.height, pixels).also { bmp.recycle() }
             }
+            val texture = texture("sky/milkyway.jpg")
+            val moonMap = texture("sky/moon.jpg")
             runOnUiThread {
                 catalog = loaded
                 sky.background = SkyBackground(texture)
+                sky.moonMap = moonMap
                 refreshSky()
                 sky.animate().alpha(1f).setDuration(1600).setInterpolator(DecelerateInterpolator()).start()
                 pendingGleo?.let { pendingGleo = null; handleGleo(it) }

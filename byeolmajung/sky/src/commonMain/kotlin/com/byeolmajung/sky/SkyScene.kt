@@ -35,7 +35,14 @@ data class StarDot(val x: Float, val y: Float, val radius: Float, val color: Int
 }
 
 data class LineSeg(val x1: Float, val y1: Float, val x2: Float, val y2: Float, val color: Int, val width: Float)
-data class BodyDisc(val x: Float, val y: Float, val radius: Float, val color: Int, val kind: BodyKind, val phase: Double, val waxing: Boolean)
+/**
+ * A disc for the Sun or the Moon. For the Moon, [north], [sun] and [west] are screen directions (radians, y down)
+ * toward celestial north, toward the Sun and toward celestial west, used by [MoonSprite] to light and orient it.
+ */
+data class BodyDisc(
+    val x: Float, val y: Float, val radius: Float, val color: Int, val kind: BodyKind, val phase: Double, val waxing: Boolean,
+    val north: Float = 0f, val sun: Float = 0f, val west: Float = 0f,
+)
 data class Label(val text: String, val x: Float, val y: Float, val size: Float, val color: Int, val bold: Boolean = false)
 data class Ring(val x: Float, val y: Float, val radius: Float, val color: Int, val width: Float)
 /**
@@ -183,14 +190,15 @@ object SkyScene {
             val p = camera.project(h)?.takeIf { camera.isOnScreen(it, 30f) } ?: return@forEach
             val (radius, color) = when (body.kind) {
                 BodyKind.SUN -> 18f * d to 0xFFFFE8A0.toInt()
-                BodyKind.MOON -> 16f * d to 0xFFEDEBE0.toInt()
+                BodyKind.MOON -> 26f * d to 0xFFEDEBE0.toInt()
                 BodyKind.PLANET -> starRadius(body.magnitude) * d to PLANET_COLORS.getValue(body.id)
             }
             if (body.kind == BodyKind.PLANET) {
                 // To the naked eye a planet is a bright, steady point, not a disc.
                 stars += StarDot(p.x, p.y, radius, color, glow = ((1.5 - body.magnitude) / 4).coerceIn(0.2, 1.0).toFloat())
             } else {
-                bodies += BodyDisc(p.x, p.y, radius, color, body.kind, body.phase, body.waxing)
+                val disc = BodyDisc(p.x, p.y, radius, color, body.kind, body.phase, body.waxing)
+                bodies += if (body.kind == BodyKind.MOON) moonDirections(snapshot, camera, body, disc) else disc
             }
             labels += Label(body.nameKo, p.x + radius + 6f * d, p.y + radius + 14f * d, 15f * d, color, bold = true)
             hits += HitTarget(p.x, p.y, radius + 8f * d, SkyObject.BodyObject(body), priority = 0)
@@ -229,6 +237,38 @@ object SkyScene {
             hitTargets = hits,
             isDaylight = sunAlt > -6,
         )
+    }
+
+    /** Screen directions toward celestial north, the Sun and celestial west, measured half a degree from the Moon. */
+    private fun moonDirections(snapshot: SkySnapshot, camera: Camera, moon: Body, disc: BodyDisc): BodyDisc {
+        val tf = HorizonTransform(snapshot.epochMillis, snapshot.observer)
+        val m = moon.equatorial
+        val c = camera.project(tf.toHorizontalOfDate(m)) ?: return disc
+        fun angleTo(eq: Equatorial): Float? = camera.project(tf.toHorizontalOfDate(eq))?.let { p ->
+            kotlin.math.atan2((p.y - c.y).toDouble(), (p.x - c.x).toDouble()).toFloat()
+        }
+        val north = angleTo(Equatorial(m.ra, (m.dec + 0.5).coerceAtMost(89.9))) ?: return disc
+        val west = angleTo(Equatorial(m.ra - 0.5 / kotlin.math.cos(m.dec * DEG).coerceAtLeast(0.05), m.dec)) ?: return disc
+        // Half a degree along the great circle from the Moon toward the Sun.
+        val s = snapshot.bodies.first { it.first.kind == BodyKind.SUN }.first.equatorial
+        fun unit(e: Equatorial) = doubleArrayOf(
+            kotlin.math.cos(e.dec * DEG) * kotlin.math.cos(e.ra * DEG),
+            kotlin.math.cos(e.dec * DEG) * kotlin.math.sin(e.ra * DEG),
+            kotlin.math.sin(e.dec * DEG),
+        )
+        val mu = unit(m)
+        val su = unit(s)
+        val k = mu[0] * su[0] + mu[1] * su[1] + mu[2] * su[2]
+        val t = DoubleArray(3) { su[it] - k * mu[it] }
+        val tl = kotlin.math.sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2])
+        val sun = if (tl < 1e-6) north else {
+            val step = 0.5 * DEG
+            val q = DoubleArray(3) { mu[it] * kotlin.math.cos(step) + t[it] / tl * kotlin.math.sin(step) }
+            val ra = kotlin.math.atan2(q[1], q[0]) * RAD
+            val dec = kotlin.math.asin(q[2].coerceIn(-1.0, 1.0)) * RAD
+            angleTo(Equatorial((ra + 360) % 360, dec)) ?: north
+        }
+        return disc.copy(north = north, sun = sun, west = west)
     }
 
     private fun constellationArt(snapshot: SkySnapshot, camera: Camera, options: SceneOptions): List<ArtPlacement> {

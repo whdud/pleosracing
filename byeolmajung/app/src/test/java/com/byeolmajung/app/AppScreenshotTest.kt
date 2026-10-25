@@ -74,6 +74,13 @@ class AppScreenshotTest {
         shot(root, "6_gleo_describe")
         click(root, "×")
 
+        // Gleo: "글레오야, 달 어디 있어?" turns the view to the Moon (when it is up).
+        controller.newIntent(Intent("FIND_SKY_OBJECT").putExtra("ACTION_PARAM", "{\"name\":\"달\"}"))
+        idle()
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(1))
+        shot(root, "6b_moon")
+        click(root, "×")
+
         click(root, "선루프")
         shot(root, "7_sunroof")
         click(root, "앞유리")

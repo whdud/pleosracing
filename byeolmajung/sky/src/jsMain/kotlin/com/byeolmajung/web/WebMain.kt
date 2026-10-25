@@ -115,6 +115,18 @@ private class WebApp {
               }
             }
         }
+        loadTexture("sky/milkyway.jpg") { tex ->
+            background = SkyBackground(tex)
+            bgKey = ""
+            redraw()
+        }
+        loadTexture("sky/moon.jpg") { tex ->
+            renderer.moonMap = tex
+            redraw()
+        }
+    }
+
+    private fun loadTexture(src: String, onLoad: (SkyTexture) -> Unit) {
         val img = document.createElement("img") as HTMLImageElement
         img.onload = {
             val c = document.createElement("canvas") as HTMLCanvasElement
@@ -127,11 +139,9 @@ private class WebApp {
                 val d = data.asDynamic()
                 (0xFF shl 24) or ((d[i * 4] as Int) shl 16) or ((d[i * 4 + 1] as Int) shl 8) or (d[i * 4 + 2] as Int)
             }
-            background = SkyBackground(SkyTexture(c.width, c.height, px))
-            bgKey = ""
-            redraw()
+            onLoad(SkyTexture(c.width, c.height, px))
         }
-        img.src = "sky/milkyway.jpg"
+        img.src = src
     }
 
     private fun refreshSky() {

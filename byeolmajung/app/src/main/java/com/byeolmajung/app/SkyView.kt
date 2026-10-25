@@ -69,6 +69,14 @@ class SkyView(context: Context) : View(context) {
     private var frame: SkyFrame? = null
     private var animator: ValueAnimator? = null
     private val density = resources.displayMetrics.density
+    /** Photographic Moon map; see [com.byeolmajung.sky.MoonSprite]. */
+    var moonMap: com.byeolmajung.sky.SkyTexture?
+        get() = renderer.moonMap
+        set(value) {
+            renderer.moonMap = value
+            invalidate()
+        }
+
     private val renderer = SkyCanvasRenderer { file ->
         runCatching { context.assets.open("sky/art/$file").use(android.graphics.BitmapFactory::decodeStream) }.getOrNull()
     }
