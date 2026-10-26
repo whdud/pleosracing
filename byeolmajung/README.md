@@ -1,6 +1,7 @@
-# 별마중
+# 나별보
 
 차가 멈춘 그 자리에서, 차가 바라보는 방향의 밤하늘을 보여주고 별자리 이야기를 들려주는 Pleos Connect 천체 관측 앱입니다.
+이름은 "나랑 별 보러 가지 않을래?"의 줄임말이에요.
 
 ## 주요 기능 (프로토타입 v0.1)
 
@@ -66,7 +67,7 @@ Pleos 이미지를 받기 전에도 구글의 일반 Android Automotive 에뮬�
 2. **Device Manager → Create Virtual Device → Automotive** 탭에서 `Automotive (1408p landscape)` 같은 가로형 기기를 고릅니다.
 3. 시스템 이미지는 **API 34, x86_64** (Android Automotive)를 받아서 선택하고 만듭니다.
 4. 에뮬레이터를 켠 뒤, APK 파일을 에뮬레이터 창으로 **끌어다 놓으면** 설치됩니다.
-5. 앱 목록에서 **별마중**을 실행합니다. 차 위치가 없으니 "장소" 메뉴에서 장소를 고르세요.
+5. 앱 목록에서 **나별보**를 실행합니다. 차 위치가 없으니 "장소" 메뉴에서 장소를 고르세요.
    - 시간이 이상하면 에뮬레이터 설정에서 시간대를 서울로 바꿉니다.
    - Pleos 전용 기능(차 위치·방향, 조명, 선루프)은 일반 에뮬레이터에서는 동작하지 않고 건너뜁니다.
 
@@ -96,6 +97,7 @@ Pleos 이미지를 받기 전에도 구글의 일반 Android Automotive 에뮬�
 | 별 위치·밝기·색·거리 (`stars.csv`) | [HYG Database v4.4](https://codeberg.org/astronexus/hyg) (astronexus) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
 | 별자리 선과 이름 (`constellations.txt`) | [d3-celestial](https://github.com/ofrohn/d3-celestial) (Olaf Frohn) | BSD 3-Clause |
 | 은하수 배경 (`milkyway.jpg`) | [NASA SVS Deep Star Maps 2020](https://svs.gsfc.nasa.gov/4851) `milkyway_2020_4k.exr`를 2048×1024로 줄이고 톤 조정. Credit: NASA/Goddard Space Flight Center Scientific Visualization Studio. Gaia DR2: ESA/Gaia/DPAC | NASA 공개 자료 (출처 표기) |
+| 앱 아이콘 (`mipmap-*/ic_launcher_sky.png`) | 같은 NASA SVS Deep Star Maps 2020의 `starmap_2020_4k_gal.exr`에서 은하 중심을 잘라냄 (`tools/prepare_icon.py`). Credit: NASA/Goddard Space Flight Center Scientific Visualization Studio. Gaia DR2: ESA/Gaia/DPAC | NASA 공개 자료 (출처 표기) |
 | 행성 궤도 요소 | JPL "Keplerian Elements for Approximate Positions of the Major Planets" (E. M. Standish) | 공개 자료 |
 
 달 표면 지도(`moon.jpg`)는 NASA LRO(Lunar Reconnaissance Orbiter) 사진으로 만든 NASA SVS CGI Moon Kit의 이미지를 줄인 것입니다 (퍼블릭 도메인, 출처: NASA's Scientific Visualization Studio).
@@ -110,4 +112,5 @@ Pleos 이미지를 받기 전에도 구글의 일반 Android Automotive 에뮬�
 ```bash
 python3 tools/prepare_sky_data.py <받은 폴더> app/src/main/assets/sky
 python3 tools/prepare_milkyway.py <받은 폴더>/milkyway_2020_4k.exr app/src/main/assets/sky/milkyway.jpg   # ffmpeg, numpy, Pillow 필요
+python3 tools/prepare_icon.py <받은 폴더>/starmap_2020_4k_gal.exr app/src/main/res   # OpenEXR, numpy, Pillow 필요
 ```

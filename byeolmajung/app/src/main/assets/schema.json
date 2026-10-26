@@ -1,7 +1,7 @@
 {
   "packageName": "com.byeolmajung.app",
   "appDescription": "A stargazing app for a parked car that shows tonight's sky and tells children's stories about stars and constellations.",
-  "invokeWord": "별마중",
+  "invokeWord": "나별보",
   "version": "0.1.0",
   "functions": [
     {
