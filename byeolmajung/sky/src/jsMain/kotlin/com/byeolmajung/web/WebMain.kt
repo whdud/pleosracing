@@ -32,7 +32,7 @@ import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 /**
- * Web demo of the 별마중 car app. Same sky engine as the Android app; the screen, buttons and story flow
+ * Web demo of the 나별보 car app. Same sky engine as the Android app; the screen, buttons and story flow
  * mirror MainActivity. Car-only features (car position and heading, cabin lights, sunroof blind) are
  * simulated: a preset place and a fixed heading; turning the lights off is only announced.
  */
@@ -446,6 +446,9 @@ private class WebApp {
 
     private fun showStoryPage() {
         val story = activeStory ?: return
+        // Some pages look elsewhere (the sea monster page turns to Cetus).
+        val h = HorizonTransform(now.toLong(), place.observer).toHorizontal(story.focusFor(storyPage))
+        if (h.alt > 10) lookAt(h)
         showPanel(story.title, "${story.season} 별자리 이야기  ·  ${storyPage + 1} / ${story.pages.size}", story.pages[storyPage], storyText = true)
         listenButton = addPanelButton(LISTEN_STORY, kind = "primary") {
             if (readingStory || speaking) stopSpeech() else readStory()

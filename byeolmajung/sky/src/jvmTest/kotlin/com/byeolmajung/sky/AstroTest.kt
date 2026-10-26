@@ -149,7 +149,7 @@ class StoryTest {
 
     @Test
     fun everyStoryPointsAtKnownConstellations() {
-        val abbrs = setOf("Lyr", "Aql", "UMa", "Ori", "Sco", "Per", "And", "Cas", "Cep")
+        val abbrs = setOf("Lyr", "Aql", "UMa", "Ori", "Sco", "Per", "And", "Cas", "Cep", "Cet")
         Stories.all.forEach { story -> story.constellations.forEach { assertTrue(it in abbrs) } }
     }
 }

@@ -9,7 +9,11 @@ data class Story(
     /** Where to point the view while telling the story (J2000). */
     val focus: Equatorial,
     val pages: List<String>,
-)
+    /** Pages that look somewhere other than [focus], by page index. */
+    val pageFocus: Map<Int, Equatorial> = emptyMap(),
+) {
+    fun focusFor(page: Int): Equatorial = pageFocus[page] ?: focus
+}
 
 object Stories {
     val all = listOf(
@@ -58,7 +62,8 @@ object Stories {
         Story(
             id = "perseus_andromeda",
             title = "페르세우스와 안드로메다 공주",
-            constellations = listOf("Per", "And", "Cas", "Cep"),
+            // Cetus is the sea monster of the story.
+            constellations = listOf("Per", "And", "Cas", "Cep", "Cet"),
             season = "가을",
             focus = Equatorial(15.0, 50.0),
             pages = listOf(
@@ -68,6 +73,8 @@ object Stories {
                 "페르세우스는 괴물을 물리치고 공주를 구했어요. 두 사람은 결혼해서 행복하게 살았고, 온 가족이 함께 가을 하늘의 별자리가 되었답니다.",
                 "가을밤 북쪽 하늘에서 W 모양의 별 다섯 개를 찾아보세요. 그게 카시오페이아자리예요. 그 옆에 안드로메다자리와 페르세우스자리가 나란히 있어요.",
             ),
+            // The sea monster page turns south to Cetus, far below the royal family.
+            pageFocus = mapOf(1 to Equatorial(28.0, -6.0)),
         ),
     )
 

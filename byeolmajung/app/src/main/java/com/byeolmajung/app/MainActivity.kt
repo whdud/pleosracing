@@ -119,9 +119,12 @@ class MainActivity : Activity() {
         }
         location = CarLocation(this) { obs, heading ->
             runOnUiThread {
+                val first = carPosition == null
                 carPosition = obs
                 heading?.let { sky.carHeading = it }
                 refreshSky()
+                // A story started before the car's position arrived (e.g. by Gleo at launch) was aimed for a preset place.
+                if (first) activeStory?.let { moveToStoryTime(it); lookAtStoryPage() }
             }
         }
         features = CarFeatures(this) { open -> runOnUiThread { onSunroofBlind(open) } }
@@ -374,26 +377,32 @@ class MainActivity : Activity() {
         storyPage = 0
         selected = null
         sky.options = sky.options.copy(selected = null, highlightConstellations = story.constellations.toSet())
-        val h = HorizonTransform(displayTime, observer).toHorizontal(story.focus)
-        if (h.alt > 10) {
-            sky.lookAt(h)
-        } else {
-            val offsetMinutes = zone.rules.getOffset(Instant.ofEpochMilli(displayTime)).totalSeconds / 60
-            val when_ = Visibility.nextGoodTime(story.focus, observer, displayTime, offsetMinutes)?.let(Instant::ofEpochMilli)
-            if (when_ != null) {
-                timeOffsetMillis = when_.toEpochMilli() - System.currentTimeMillis()
-                refreshSky()
-                sky.lookAt(HorizonTransform(displayTime, observer).toHorizontal(story.focus))
-                val t = ZonedDateTime.ofInstant(when_, zone).format(DateTimeFormatter.ofPattern("M월 d일 a h시", Locale.KOREAN))
-                toast("지금은 잘 안 보여서, 잘 보이는 $t 하늘로 이동했어요")
-            }
-        }
+        moveToStoryTime(story)
         showStoryPage()
         if (readAloud) readStory()
     }
 
+    /** If the story's part of the sky is below the horizon now, moves the clock to when it is well placed. */
+    private fun moveToStoryTime(story: Story) {
+        if (HorizonTransform(displayTime, observer).toHorizontal(story.focus).alt > 10) return
+        val offsetMinutes = zone.rules.getOffset(Instant.ofEpochMilli(displayTime)).totalSeconds / 60
+        val when_ = Visibility.nextGoodTime(story.focus, observer, displayTime, offsetMinutes)?.let(Instant::ofEpochMilli) ?: return
+        timeOffsetMillis = when_.toEpochMilli() - System.currentTimeMillis()
+        refreshSky()
+        val t = ZonedDateTime.ofInstant(when_, zone).format(DateTimeFormatter.ofPattern("M월 d일 a h시", Locale.KOREAN))
+        toast("지금은 잘 안 보여서, 잘 보이는 $t 하늘로 이동했어요")
+    }
+
+    /** Turns the view to the part of the sky the current story page talks about, if it is above the horizon. */
+    private fun lookAtStoryPage() {
+        val story = activeStory ?: return
+        val h = HorizonTransform(displayTime, observer).toHorizontal(story.focusFor(storyPage))
+        if (h.alt > 10) sky.lookAt(h)
+    }
+
     private fun showStoryPage() {
         val story = activeStory ?: return
+        lookAtStoryPage()
         showPanel(story.title, "${story.season} 별자리 이야기  ·  ${storyPage + 1} / ${story.pages.size}", story.pages[storyPage], storyText = true)
         listenButton = paperButton(LISTEN_STORY) {
             if (readingStory || speaker.isSpeaking) stopSpeaking() else readStory()
