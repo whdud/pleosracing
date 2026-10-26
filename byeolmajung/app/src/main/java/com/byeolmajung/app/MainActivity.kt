@@ -2,11 +2,13 @@ package com.byeolmajung.app
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.animation.DecelerateInterpolator
@@ -96,6 +98,10 @@ class MainActivity : Activity() {
     private var listenButton: PaperButton? = null
 
     private lateinit var location: CarLocation
+    private var locationStarted = false
+
+    /** The permission dialog is shown once per launch; after a denial the preset places are used. */
+    private var askedLocation = false
     private lateinit var features: CarFeatures
     private lateinit var drivingGuard: DrivingGuard
     private lateinit var speaker: Speaker
@@ -153,7 +159,7 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        location.start()
+        startLocation()
         features.start()
         drivingGuard.start()
         handler.post(ticker)
@@ -163,10 +169,34 @@ class MainActivity : Activity() {
         handler.removeCallbacks(ticker)
         stopSpeaking()
         if (nightMode) features.restoreLights()
-        location.stop()
+        if (locationStarted) {
+            locationStarted = false
+            location.stop()
+        }
         features.stop()
         drivingGuard.stop()
         super.onStop()
+    }
+
+    /** Starts car location, asking for the FUSED_LOCATION permission once if it is not granted yet. */
+    private fun startLocation() {
+        if (locationStarted) return
+        if (checkSelfPermission(LOCATION_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
+            if (!askedLocation) {
+                askedLocation = true
+                requestPermissions(arrayOf(LOCATION_PERMISSION), REQUEST_LOCATION)
+            }
+            return
+        }
+        locationStarted = true
+        location.start()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_LOCATION) return
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startLocation()
+        else Log.i("Byeolmajung", "FUSED_LOCATION denied; using a preset place")
     }
 
     override fun onDestroy() {
@@ -807,5 +837,8 @@ class MainActivity : Activity() {
         private const val LISTEN = "설명 듣기"
         private const val LISTEN_STORY = "이야기 듣기"
         private const val STOP = "그만 듣기"
+
+        private const val LOCATION_PERMISSION = "pleos.car.permission.FUSED_LOCATION"
+        private const val REQUEST_LOCATION = 1
     }
 }
