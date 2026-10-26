@@ -113,7 +113,10 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(buildLayout())
 
-        speaker = Speaker(this).apply { onSpeakingChanged = ::onSpeakingChanged }
+        speaker = Speaker(this).apply {
+            onSpeakingChanged = ::onSpeakingChanged
+            onUnavailable = { readingStory = false; toast("이 차에서는 소리로 읽어 줄 수 없어요") }
+        }
         location = CarLocation(this) { obs, heading ->
             runOnUiThread {
                 carPosition = obs

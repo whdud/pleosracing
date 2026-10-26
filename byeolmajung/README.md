@@ -36,7 +36,7 @@
 | 선루프 가림막 | Vehicle SDK 2.3.2 Window `ROOF_TOP_1` `registerWindowBlindPosition()`, `moveWindowBlind()` | `pleos.car.permission.CAR_WINDOWS`, `CONTROL_CAR_WINDOWS` |
 | 주행 중 제한 | AAOS `CarUxRestrictionsManager` | - |
 | 음성 명령 | Gleo Interface: 기능 이름을 action으로 받는 intent-filter, `ACTION_PARAM`, `ai.pleos.playground.intent.action.APP_ACTION_RESPONSE` (`GleoBridge.kt`) | - |
-| 설명 듣기 | Android `TextToSpeech` (Pleos TTS SDK가 "준비 중"이라 기본 엔진 사용, `Speaker.kt`) | - |
+| 설명 듣기 | TextToSpeech SDK 3.3.1 온디바이스 모드 `speak()`, 한국어(`ko-KR`) (`Speaker.kt`). Pleos 차와 에뮬레이터에는 Android 기본 음성 엔진이 없음 | `pleos.car.permission.TTS_SERVICE` |
 
 모든 차량 기능은 capability를 먼저 확인하고, 지원하지 않는 차량(또는 에뮬레이터)에서는 조용히 건너뜁니다.
 차 위치를 받을 수 없으면 "장소" 메뉴의 프리셋(서울, 영양 국제밤하늘보호공원, 화천 조경철천문대, 제주)으로 동작합니다.

@@ -13,6 +13,8 @@
     <!-- Sunroof mode: read and open the sunroof blind -->
     <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />
     <uses-permission android:name="pleos.car.permission.CONTROL_CAR_WINDOWS" />
+    <!-- "설명 듣기": Pleos TextToSpeech SDK -->
+    <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
 
     <application
         android:allowBackup="false"
@@ -42,11 +44,4 @@
             </intent-filter>
         </activity>
     </application>
-
-    <!-- "설명 듣기" reads aloud with the platform text-to-speech engine -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.TTS_SERVICE" />
-        </intent>
-    </queries>
 </manifest>
