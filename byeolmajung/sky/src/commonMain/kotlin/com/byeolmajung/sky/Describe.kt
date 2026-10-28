@@ -19,7 +19,19 @@ object Describe {
         is SkyObject.StarObject -> star(obj.star, catalog, position)
         is SkyObject.BodyObject -> body(obj.body, position)
         is SkyObject.ConstellationObject -> constellation(obj.constellation, position)
+        SkyObject.Kepler22b -> Description(
+            title = "케플러-22b",
+            subtitle = listOfNotNull("외계 행성 · 백조자리", where(position)).joinToString(" · "),
+            body = KEPLER_22B,
+            story = null,
+        )
     }
+
+    private const val KEPLER_22B =
+        "이 앱의 이름이 된 행성이에요. 2011년 케플러 우주망원경이 태양 같은 별의 '생명가능지대'에서 처음 확인한 행성이에요. " +
+            "생명가능지대는 별에서 너무 가깝지도 멀지도 않아서 물이 액체로 있을 수 있는 곳이에요." +
+            "\n\n지구보다 두 배쯤 크고, 약 290일에 한 번 별을 한 바퀴 돌아요. 지구에서 약 640광년 떨어져 있어요." +
+            "\n\n이 행성이 도는 별은 너무 희미해서 맨눈으로는 보이지 않아요. 동그라미가 바로 그 별이 있는 자리예요."
 
     private fun star(star: Star, catalog: SkyCatalog, position: Horizontal?): Description {
         val constellation = catalog.constellation(star.constellation)
@@ -62,12 +74,14 @@ object Describe {
         val legend = when (obj) {
             is SkyObject.StarObject -> Legends.forStar(obj.star.properName) ?: Legends.forConstellation(obj.star.constellation)
             is SkyObject.ConstellationObject -> Legends.forConstellation(obj.constellation.abbr)
-            is SkyObject.BodyObject -> null
+            is SkyObject.BodyObject, SkyObject.Kepler22b -> null
         }
         val name = spokenName(d.title)
         val intro = when (obj) {
             is SkyObject.StarObject -> catalog.constellation(obj.star.constellation)
                 ?.let { "$name${josa(name, "은", "는")} ${it.nameKo}에 있는 별이에요." } ?: "$name${josa(name, "이에요", "예요")}."
+            // "22b" is read "이십이 비", so the particle follows a vowel.
+            SkyObject.Kepler22b -> "케플러-22b는 백조자리에 있는 외계 행성이에요."
             else -> "$name${josa(name, "이에요", "예요")}."
         }
         val where = position?.takeIf { it.alt > 0 }?.let { " 지금 ${compass(it.az)}쪽 하늘에 떠 있어요." }.orEmpty()

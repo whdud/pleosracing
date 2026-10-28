@@ -411,6 +411,7 @@ private class WebApp {
             is SkyObject.StarObject -> snap.starHorizontal(obj.index)
             is SkyObject.BodyObject -> snap.bodies.firstOrNull { it.first.id == obj.body.id }?.second
             is SkyObject.ConstellationObject -> HorizonTransform(snap.epochMillis, snap.observer).toHorizontal(obj.constellation.label)
+            SkyObject.Kepler22b -> HorizonTransform(snap.epochMillis, snap.observer).toHorizontal(SkyObject.Kepler22b.position)
         }
     }
 

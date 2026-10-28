@@ -118,6 +118,20 @@ class SkyPreviewTest {
     }
 
     @Test
+    fun kepler22bIsMarkedInCygnus() {
+        // A summer evening: Cygnus is high in the east.
+        val snap = SkySnapshot.compute(catalog, ZonedDateTime.parse("2026-08-12T22:00:00+09:00").toInstant().toEpochMilli(), yeongyang)
+        assertEquals(SkyObject.Kepler22b, Gleo.find("케플러-22b", snap))
+        val h = HorizonTransform(snap.epochMillis, snap.observer).toHorizontal(SkyObject.Kepler22b.position)
+        assertTrue(h.alt > 50, "altitude ${h.alt}")
+        val frame = SkyScene.build(snap, Camera(ViewMode.WINDSHIELD, h.az, h.alt, 60.0, 1920, 720))
+        val hit = frame.hitTargets.single { it.target == SkyObject.Kepler22b }
+        assertEquals(SkyObject.Kepler22b, frame.pick(hit.x, hit.y, 4f))
+        assertTrue(frame.labels.any { it.text == "케플러-22b" })
+        assertTrue(Describe.narration(SkyObject.Kepler22b, catalog, h).startsWith("케플러-22b는 백조자리에 있는 외계 행성이에요."))
+    }
+
+    @Test
     fun renderPreviews() {
         val winter = ZonedDateTime.parse("2026-12-20T23:00:00+09:00").toInstant().toEpochMilli()
         val summer = ZonedDateTime.parse("2026-08-12T22:00:00+09:00").toInstant().toEpochMilli()

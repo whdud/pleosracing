@@ -58,6 +58,7 @@ object Gleo {
     fun find(name: String, snapshot: SkySnapshot): SkyObject? {
         val q = normalize(name)
         if (q.isEmpty()) return null
+        if (q.startsWith("케플러") || q.startsWith("kepler")) return SkyObject.Kepler22b
         snapshot.bodies.firstOrNull { (body, _) -> normalize(body.nameKo) == q || body.id == q }
             ?.let { return SkyObject.BodyObject(it.first) }
         val stars = snapshot.catalog.stars
@@ -130,7 +131,9 @@ object Gleo {
             is SkyObject.StarObject -> "별"
             is SkyObject.ConstellationObject -> "별자리"
             is SkyObject.BodyObject -> d.subtitle.substringBefore(" ·").ifEmpty { "천체" }
+            SkyObject.Kepler22b -> "외계 행성"
         })
+        if (obj == SkyObject.Kepler22b) put("distanceLightYears", "640")
         if (obj is SkyObject.StarObject) {
             put("magnitude", Describe.oneDecimal(obj.star.magnitude))
             obj.star.lightYears?.let { put("distanceLightYears", it.toString()) }
@@ -142,6 +145,7 @@ object Gleo {
         is SkyObject.StarObject -> obj.star.properName.ifEmpty { "the star HIP ${obj.star.hip}" }
         is SkyObject.ConstellationObject -> "the constellation ${obj.constellation.nameEn}"
         is SkyObject.BodyObject -> "the ${obj.body.id}"
+        SkyObject.Kepler22b -> "the exoplanet Kepler-22b"
     }
 
     private fun normalize(s: String) = s.lowercase().filter { it.isLetterOrDigit() }

@@ -9,6 +9,15 @@ sealed interface SkyObject {
     data class StarObject(val index: Int, val star: Star) : SkyObject
     data class BodyObject(val body: Body) : SkyObject
     data class ConstellationObject(val constellation: Constellation) : SkyObject
+
+    /**
+     * Kepler-22b, the planet the app is named after. Its star (magnitude 11.7) is far too faint for the eye
+     * and the catalog, so the spot is marked with a ring instead of drawn as a star.
+     */
+    data object Kepler22b : SkyObject {
+        /** J2000 position of the star Kepler-22 in Cygnus: 19h 16m 52.2s, +47° 53′ 04″. */
+        val position = Equatorial(289.2175, 47.8844)
+    }
 }
 
 /** Draw primitives in screen pixels. Colors are ARGB. Platform renderers (Android Canvas, AWT preview) paint these. */
@@ -114,6 +123,7 @@ object SkyScene {
     private const val STAR_LABEL = 0xFFDCE6F5.toInt()
     private const val CARDINAL = 0xFFB9C7DE.toInt()
     private const val SELECTION = 0xFF7FE0FF.toInt()
+    private const val KEPLER = 0xFF8EE3B4.toInt()
     private const val GROUND = 0xFF06080B.toInt()
     private const val TERRAIN = GROUND
     private const val HORIZON_LINE = 0xFF2C3A52.toInt()
@@ -182,6 +192,15 @@ object SkyScene {
             if (options.selected is SkyObject.StarObject && options.selected.index == i) {
                 rings += Ring(p.x, p.y, radius + 14f * d, SELECTION, 2.5f * d)
             }
+        }
+
+        // Kepler-22b: a small ring where its unseen star is, always shown since the app carries its name.
+        val kepler = HorizonTransform(snapshot.epochMillis, snapshot.observer).toHorizontal(SkyObject.Kepler22b.position)
+        if (kepler.alt > 0) camera.project(kepler)?.takeIf { camera.isOnScreen(it) }?.let { p ->
+            rings += Ring(p.x, p.y, 7f * d, KEPLER, 1.5f * d)
+            labels += Label("케플러-22b", p.x, p.y + 38f * d, 13f * d, KEPLER)
+            hits += HitTarget(p.x, p.y, 16f * d, SkyObject.Kepler22b, priority = 2)
+            if (options.selected == SkyObject.Kepler22b) rings += Ring(p.x, p.y, 21f * d, SELECTION, 2.5f * d)
         }
 
         // Sun, Moon and planets.
