@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 나별보 app icon: the core of the Milky Way (NASA SVS Deep Star Maps 2020), made by tools/prepare_icon.py -->
+<!-- 케플러-22b app icon: the core of the Milky Way (NASA SVS Deep Star Maps 2020), made by tools/prepare_icon.py -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@mipmap/ic_launcher_sky" />
     <foreground android:drawable="@android:color/transparent" />
