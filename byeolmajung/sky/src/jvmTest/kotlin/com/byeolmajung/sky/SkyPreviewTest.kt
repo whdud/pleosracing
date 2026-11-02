@@ -107,6 +107,8 @@ class SkyPreviewTest {
         assertEquals("jupiter", (Gleo.find("목성", snap) as SkyObject.BodyObject).body.id)
         assertEquals("Ori", (Gleo.find("오리온", snap) as SkyObject.ConstellationObject).constellation.abbr)
         assertEquals("Ori", (Gleo.find("오리온자리", snap) as SkyObject.ConstellationObject).constellation.abbr)
+        assertEquals("Cyg", (Gleo.find("백조자리", snap) as SkyObject.ConstellationObject).constellation.abbr)
+        assertEquals("Cyg", (Gleo.find("고니자리", snap) as SkyObject.ConstellationObject).constellation.abbr)
         assertEquals(null, Gleo.find("없는별", snap))
         assertEquals("견우와 직녀", Gleo.findStory("견우 직녀")?.title)
 

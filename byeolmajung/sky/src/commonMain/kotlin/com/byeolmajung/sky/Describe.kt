@@ -77,6 +77,11 @@ object Describe {
             is SkyObject.BodyObject, SkyObject.Kepler22b -> null
         }
         val name = spokenName(d.title)
+        val where = position?.takeIf { it.alt > 0 }?.let { " 지금 ${compass(it.az)}쪽 하늘에 떠 있어요." }.orEmpty()
+        // A star's own legend that already names its constellation needs no introduction.
+        if (obj is SkyObject.StarObject && legend != null && catalog.constellation(obj.star.constellation)?.nameKo?.let { it in legend } == true) {
+            return legend + where
+        }
         val intro = when (obj) {
             is SkyObject.StarObject -> catalog.constellation(obj.star.constellation)
                 ?.let { "$name${josa(name, "은", "는")} ${it.nameKo}에 있는 별이에요." } ?: "$name${josa(name, "이에요", "예요")}."
@@ -84,7 +89,6 @@ object Describe {
             SkyObject.Kepler22b -> "케플러-22b는 백조자리에 있는 외계 행성이에요."
             else -> "$name${josa(name, "이에요", "예요")}."
         }
-        val where = position?.takeIf { it.alt > 0 }?.let { " 지금 ${compass(it.az)}쪽 하늘에 떠 있어요." }.orEmpty()
         return listOf(intro + where, legend ?: d.body).joinToString(" ")
     }
 

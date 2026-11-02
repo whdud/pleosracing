@@ -148,6 +148,17 @@ class StoryTest {
     }
 
     @Test
+    fun narrationSkipsTheIntroWhenTheLegendNamesTheConstellation() {
+        val deneb = Star(102098, Equatorial(310.358, 45.280), 1.25, 0.09, "Cyg", "Deneb", 1412)
+        val cygnus = Constellation("Cyg", "백조자리", "Swan", Equatorial(307.5, 50.0), emptyList())
+        val catalog = SkyCatalog(listOf(deneb), listOf(cygnus))
+        val text = Describe.narration(SkyObject.StarObject(0, deneb), catalog, Horizontal(70.0, 200.0))
+        assertTrue(text.startsWith("데네브는 백조자리의 꼬리에서 빛나는 별이에요."), text)
+        assertTrue(text.endsWith("지금 남쪽 하늘에 떠 있어요."), text)
+        assertTrue("백조자리에 있는 별" !in text, text)
+    }
+
+    @Test
     fun everyStoryPointsAtKnownConstellations() {
         val abbrs = setOf("Lyr", "Aql", "UMa", "Ori", "Sco", "Per", "And", "Cas", "Cep", "Cet")
         Stories.all.forEach { story -> story.constellations.forEach { assertTrue(it in abbrs) } }

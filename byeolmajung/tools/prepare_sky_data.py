@@ -15,6 +15,8 @@ import sys
 from pathlib import Path
 
 MAG_LIMIT = 6.5
+# Names the source spells differently from the app.
+KO_NAMES = {"Cyg": "백조자리"}
 
 
 def ra_from_lon(lon):
@@ -53,7 +55,7 @@ def build_constellations(lines_src, names_src, dst):
             cid = feature["id"]
             props = names[cid]["properties"]
             lon, lat = names[cid]["geometry"]["coordinates"]
-            out.write(f'C|{cid}|{props["ko"]}|{props["en"]}|{ra_from_lon(lon):.3f}|{lat:.3f}\n')
+            out.write(f'C|{cid}|{KO_NAMES.get(cid, props["ko"])}|{props["en"]}|{ra_from_lon(lon):.3f}|{lat:.3f}\n')
             for polyline in feature["geometry"]["coordinates"]:
                 pts = ",".join(f"{ra_from_lon(p[0]):.4f} {p[1]:.4f}" for p in polyline)
                 out.write(f"L|{pts}\n")

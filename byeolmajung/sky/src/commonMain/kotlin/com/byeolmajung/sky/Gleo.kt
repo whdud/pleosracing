@@ -68,8 +68,10 @@ object Gleo {
             // "직녀성 (베가)" answers to both "직녀성" and "베가".
             ko.split(" (", ")").map(::normalize).any { it.isNotEmpty() && it == q } || normalize(s.properName) == q
         }?.let { return SkyObject.StarObject(it, stars[it]) }
+        // 고니 is the native Korean word for 백조, and some books use 고니자리.
+        val asked = q.replace("고니", "백조")
         snapshot.catalog.constellations.firstOrNull { c ->
-            normalize(c.nameKo) == q || normalize(c.nameKo).removeSuffix("자리") == q || normalize(c.nameEn) == q
+            normalize(c.nameKo) == asked || normalize(c.nameKo).removeSuffix("자리") == asked || normalize(c.nameEn) == q
         }?.let { return SkyObject.ConstellationObject(it) }
         return null
     }
