@@ -102,11 +102,13 @@ Pleos 이미지를 받기 전에도 구글의 일반 Android Automotive 에뮬�
 
 달 표면 지도(`moon.jpg`)는 NASA LRO(Lunar Reconnaissance Orbiter) 사진으로 만든 NASA SVS CGI Moon Kit의 이미지를 줄인 것입니다 (퍼블릭 도메인, 출처: NASA's Scientific Visualization Studio).
 
-별자리 그림 84점은 Stellarium의 서양 별자리 그림(Johan Meuris 작)을 가공한 것으로 Free Art License 1.3을 따릅니다 (`app/licenses/Stellarium-constellation-art.txt`, 변환: `tools/prepare_art.py`).
+별자리 그림 84점은 Stellarium의 서양 별자리 그림(Johan Meuris 작)을 가공한 것으로 Free Art License 1.3을 따릅니다 (`app/src/main/assets/licenses/Stellarium-constellation-art.txt`, 변환: `tools/prepare_art.py`).
 
-글꼴 Hahmlet(시계, 제목, 이야기 본문)은 SIL Open Font License 1.1로 배포되며 라이선스 전문은 `app/licenses/Hahmlet-OFL.txt`에 있습니다.
+글꼴 Hahmlet(시계, 제목, 이야기 본문)은 SIL Open Font License 1.1로 배포되며 라이선스 전문은 `app/src/main/assets/licenses/Hahmlet-OFL.txt`에 있습니다.
 
 `stars.csv`는 HYG 데이터베이스를 가공한 것이므로 CC BY-SA 4.0을 따릅니다. 별자리 이야기와 앱 코드, 아이콘은 직접 작성했습니다.
+
+라이선스 전문은 APK에도 들어갑니다 (`app/src/main/assets/licenses/`).
 
 데이터를 다시 만들려면 위 출처에서 `hyg_v44.csv`, `constellations.lines.json`, `constellations.json`을 받은 뒤 실행합니다.
 ```bash

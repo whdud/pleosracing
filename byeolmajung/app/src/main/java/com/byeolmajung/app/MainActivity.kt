@@ -809,6 +809,9 @@ class MainActivity : Activity() {
             }
             textSize = 20f
             isAllCaps = false
+            // The car theme's button style is single-line, which hides the detail line.
+            isSingleLine = false
+            maxLines = 3
             gravity = Gravity.START or Gravity.CENTER_VERTICAL
             setTextColor(PAPER)
             background = null
