@@ -45,8 +45,8 @@
 ## 실행 방법
 
 ### 준비
-- Android Studio, Android SDK API 34, JDK 17 이상
-- Pleos Connect Emulator (API 34, Pleos Connect v2.0), Cold boot로 실행
+- Android Studio, Android SDK API 34, JDK 17~21
+- Pleos Connect Emulator v2.1.0 (API 34, 화면 2560×1440), Cold boot로 실행
 
 ### 빌드와 설치
 ```bash
