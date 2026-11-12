@@ -1,4 +1,4 @@
-package com.byeolmajung.sky
+package com.kepler22b.sky
 
 /**
  * Short tales about well-known stars and constellations, written for children and read aloud by

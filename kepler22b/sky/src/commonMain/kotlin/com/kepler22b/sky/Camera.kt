@@ -1,4 +1,4 @@
-package com.byeolmajung.sky
+package com.kepler22b.sky
 
 import kotlin.math.cos
 import kotlin.math.sin

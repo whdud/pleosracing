@@ -1,4 +1,4 @@
-package com.byeolmajung.app
+package com.kepler22b.app
 
 import android.animation.ValueAnimator
 import android.content.Context
@@ -8,16 +8,16 @@ import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.animation.DecelerateInterpolator
-import com.byeolmajung.sky.BackgroundImage
-import com.byeolmajung.sky.Camera
-import com.byeolmajung.sky.Horizontal
-import com.byeolmajung.sky.SceneOptions
-import com.byeolmajung.sky.SkyBackground
-import com.byeolmajung.sky.SkyFrame
-import com.byeolmajung.sky.SkyObject
-import com.byeolmajung.sky.SkyScene
-import com.byeolmajung.sky.SkySnapshot
-import com.byeolmajung.sky.ViewMode
+import com.kepler22b.sky.BackgroundImage
+import com.kepler22b.sky.Camera
+import com.kepler22b.sky.Horizontal
+import com.kepler22b.sky.SceneOptions
+import com.kepler22b.sky.SkyBackground
+import com.kepler22b.sky.SkyFrame
+import com.kepler22b.sky.SkyObject
+import com.kepler22b.sky.SkyScene
+import com.kepler22b.sky.SkySnapshot
+import com.kepler22b.sky.ViewMode
 
 /**
  * The interactive sky. The view direction follows the car heading; the user can drag to look around
@@ -73,8 +73,8 @@ class SkyView(context: Context) : View(context) {
     private var frame: SkyFrame? = null
     private var animator: ValueAnimator? = null
     private val density = resources.displayMetrics.density
-    /** Photographic Moon map; see [com.byeolmajung.sky.MoonSprite]. */
-    var moonMap: com.byeolmajung.sky.SkyTexture?
+    /** Photographic Moon map; see [com.kepler22b.sky.MoonSprite]. */
+    var moonMap: com.kepler22b.sky.SkyTexture?
         get() = renderer.moonMap
         set(value) {
             renderer.moonMap = value

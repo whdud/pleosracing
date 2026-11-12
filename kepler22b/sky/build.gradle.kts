@@ -14,7 +14,7 @@ kotlin {
     js {
         browser {
             commonWebpackConfig {
-                outputFileName = "byeolmajung.js"
+                outputFileName = "kepler22b.js"
             }
         }
         binaries.executable()

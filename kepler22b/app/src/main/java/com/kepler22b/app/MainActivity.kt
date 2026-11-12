@@ -1,4 +1,4 @@
-package com.byeolmajung.app
+package com.kepler22b.app
 
 import android.app.Activity
 import android.content.Intent
@@ -18,19 +18,19 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import com.byeolmajung.sky.Describe
-import com.byeolmajung.sky.Gleo
-import com.byeolmajung.sky.HorizonTransform
-import com.byeolmajung.sky.Observer
-import com.byeolmajung.sky.SkyBackground
-import com.byeolmajung.sky.SkyCatalog
-import com.byeolmajung.sky.SkyObject
-import com.byeolmajung.sky.SkySnapshot
-import com.byeolmajung.sky.SkyTexture
-import com.byeolmajung.sky.Stories
-import com.byeolmajung.sky.Story
-import com.byeolmajung.sky.ViewMode
-import com.byeolmajung.sky.Visibility
+import com.kepler22b.sky.Describe
+import com.kepler22b.sky.Gleo
+import com.kepler22b.sky.HorizonTransform
+import com.kepler22b.sky.Observer
+import com.kepler22b.sky.SkyBackground
+import com.kepler22b.sky.SkyCatalog
+import com.kepler22b.sky.SkyObject
+import com.kepler22b.sky.SkySnapshot
+import com.kepler22b.sky.SkyTexture
+import com.kepler22b.sky.Stories
+import com.kepler22b.sky.Story
+import com.kepler22b.sky.ViewMode
+import com.kepler22b.sky.Visibility
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -202,7 +202,7 @@ class MainActivity : Activity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode != REQUEST_LOCATION) return
         if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startLocation()
-        else Log.i("Byeolmajung", "FUSED_LOCATION denied; using a preset place")
+        else Log.i("Kepler22b", "FUSED_LOCATION denied; using a preset place")
     }
 
     override fun onDestroy() {

@@ -1,4 +1,4 @@
-package com.byeolmajung.sky
+package com.kepler22b.sky
 
 /** A catalog star. Position is J2000. */
 data class Star(

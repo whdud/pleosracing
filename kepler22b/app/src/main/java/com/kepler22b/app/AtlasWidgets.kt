@@ -1,4 +1,4 @@
-package com.byeolmajung.app
+package com.kepler22b.app
 
 import android.animation.ValueAnimator
 import android.content.Context

@@ -1,4 +1,4 @@
-package com.byeolmajung.app
+package com.kepler22b.app
 
 import ai.pleos.playground.location.fused.FusedLocation
 import ai.pleos.playground.location.fused.listener.FusedLocationListener
@@ -16,9 +16,9 @@ import android.car.Car
 import android.car.drivingstate.CarUxRestrictionsManager
 import android.content.Context
 import android.util.Log
-import com.byeolmajung.sky.Observer
+import com.kepler22b.sky.Observer
 
-private const val TAG = "Byeolmajung"
+private const val TAG = "Kepler22b"
 
 /** Car position and heading from the Pleos FusedLocation SDK. */
 class CarLocation(context: Context, private val onUpdate: (Observer, heading: Double?) -> Unit) {

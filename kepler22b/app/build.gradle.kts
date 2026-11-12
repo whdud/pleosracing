@@ -4,14 +4,14 @@ plugins {
 }
 
 android {
-    namespace = "com.byeolmajung.app"
+    namespace = "com.kepler22b.app"
     compileSdk = 34
 
     // AAOS Car API (CarUxRestrictionsManager)
     useLibrary("android.car")
 
     defaultConfig {
-        applicationId = "com.byeolmajung.app"
+        applicationId = "com.kepler22b.app"
         minSdk = 28
         targetSdk = 34
         versionCode = 1

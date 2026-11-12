@@ -50,7 +50,7 @@
 
 ### 빌드와 설치
 ```bash
-cd byeolmajung
+cd kepler22b
 ./gradlew :app:assembleRelease
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
@@ -58,7 +58,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 ### 웹 데모 (브라우저에서 바로 조작)
 같은 하늘 엔진(`sky/`)을 Kotlin/JS로 컴파일한 웹 버전입니다. 차 전용 기능(차 위치·방향, 조명, 선루프)은 장소 선택과 화면 효과로 대신합니다. 설명 듣기는 브라우저 음성 합성으로 읽습니다. Gleo는 차에서 음성으로만 동작하므로 웹 데모에는 없습니다.
 ```bash
-./gradlew :sky:webDemo   # 결과: sky/build/web (index.html, byeolmajung.js, sky/ 데이터)
+./gradlew :sky:webDemo   # 결과: sky/build/web (index.html, kepler22b.js, sky/ 데이터)
 ```
 
 ### Pleos 에뮬레이터 없이 PC에서 보기 (Windows)

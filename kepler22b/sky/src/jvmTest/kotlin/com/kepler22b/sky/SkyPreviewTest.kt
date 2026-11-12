@@ -1,4 +1,4 @@
-package com.byeolmajung.sky
+package com.kepler22b.sky
 
 import java.awt.BasicStroke
 import java.awt.Color

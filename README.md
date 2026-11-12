@@ -4,7 +4,7 @@
 
 ## APK
 
-[`apk/조영환_케플러-22b_release.apk`](apk/조영환_케플러-22b_release.apk) (release 빌드, versionName 0.1.0, 패키지 `com.byeolmajung.app`)
+[`apk/조영환_케플러-22b_release.apk`](apk/조영환_케플러-22b_release.apk) (release 빌드, versionName 0.1.0, 패키지 `com.kepler22b.app`)
 
 공모전 시연용이라 별도 출시 키 대신 Android 디버그 키로 서명했습니다. release 빌드라 디버그 모드는 꺼져 있습니다.
 
@@ -20,7 +20,7 @@
 
 소스에서 직접 빌드하려면:
 ```bash
-cd byeolmajung
+cd kepler22b
 ./gradlew :app:assembleRelease   # 결과: app/build/outputs/apk/release/app-release.apk
 ```
 
@@ -43,14 +43,13 @@ cd byeolmajung
 
 | 경로 | 내용 |
 |---|---|
-| [`byeolmajung/`](byeolmajung/) | 앱 소스 (Kotlin, Android Automotive). 기능, 구조, SDK 사용 내역, 테스트 방법은 [byeolmajung/README.md](byeolmajung/README.md) |
+| [`kepler22b/`](kepler22b/) | 앱 소스 (Kotlin, Android Automotive). 기능, 구조, SDK 사용 내역, 테스트 방법은 [kepler22b/README.md](kepler22b/README.md) |
 | [`apk/`](apk/) | 제출용 release APK |
 | [`input-probe/`](input-probe/) | 개발 중 차량 신호가 앱까지 들어오는지 확인한 진단 앱 |
-| [`docs/proposal.md`](docs/proposal.md) | 초기 기획서 초안 (이전 앱 이름 "별마중" 시절) |
 
 ## 출처와 라이선스
 
-별 데이터와 이미지 일부는 아래 공개 자료를 가공해 썼습니다. 자세한 내용은 [byeolmajung/README.md의 데이터 출처와 라이선스](byeolmajung/README.md#데이터-출처와-라이선스)에 있고, 라이선스 전문은 APK 안(`byeolmajung/app/src/main/assets/licenses/`)에도 들어 있습니다.
+별 데이터와 이미지 일부는 아래 공개 자료를 가공해 썼습니다. 자세한 내용은 [kepler22b/README.md의 데이터 출처와 라이선스](kepler22b/README.md#데이터-출처와-라이선스)에 있고, 라이선스 전문은 APK 안(`kepler22b/app/src/main/assets/licenses/`)에도 들어 있습니다.
 
 | 자료 | 출처 | 라이선스 |
 |---|---|---|

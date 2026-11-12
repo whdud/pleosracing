@@ -30,5 +30,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Byeolmajung"
+rootProject.name = "Kepler22b"
 include(":sky", ":app")

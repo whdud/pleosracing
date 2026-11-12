@@ -1,13 +1,13 @@
-package com.byeolmajung.web
+package com.kepler22b.web
 
-import com.byeolmajung.sky.ArtPlacement
-import com.byeolmajung.sky.BackgroundImage
-import com.byeolmajung.sky.BodyDisc
-import com.byeolmajung.sky.BodyKind
-import com.byeolmajung.sky.MoonSprite
-import com.byeolmajung.sky.SkyTexture
-import com.byeolmajung.sky.SkyFrame
-import com.byeolmajung.sky.StarDot
+import com.kepler22b.sky.ArtPlacement
+import com.kepler22b.sky.BackgroundImage
+import com.kepler22b.sky.BodyDisc
+import com.kepler22b.sky.BodyKind
+import com.kepler22b.sky.MoonSprite
+import com.kepler22b.sky.SkyTexture
+import com.kepler22b.sky.SkyFrame
+import com.kepler22b.sky.StarDot
 import kotlinx.browser.document
 import org.khronos.webgl.Uint8ClampedArray
 import org.w3c.dom.CanvasRenderingContext2D

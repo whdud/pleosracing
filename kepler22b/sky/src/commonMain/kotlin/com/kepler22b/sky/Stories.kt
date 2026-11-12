@@ -1,4 +1,4 @@
-package com.byeolmajung.sky
+package com.kepler22b.sky
 
 /** A constellation story for children. Written for this app; the legends themselves are traditional. */
 data class Story(

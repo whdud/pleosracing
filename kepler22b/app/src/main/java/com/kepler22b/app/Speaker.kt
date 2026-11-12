@@ -1,4 +1,4 @@
-package com.byeolmajung.app
+package com.kepler22b.app
 
 import ai.pleos.playground.tts.TextToSpeech
 import ai.pleos.playground.tts.constant.ErrorType
@@ -124,6 +124,6 @@ class Speaker(context: Context) {
     }
 
     private companion object {
-        const val TAG = "Byeolmajung"
+        const val TAG = "Kepler22b"
     }
 }

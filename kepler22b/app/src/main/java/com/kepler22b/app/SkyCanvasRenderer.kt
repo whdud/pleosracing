@@ -1,4 +1,4 @@
-package com.byeolmajung.app
+package com.kepler22b.app
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -13,14 +13,14 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
-import com.byeolmajung.sky.ArtPlacement
-import com.byeolmajung.sky.BackgroundImage
-import com.byeolmajung.sky.BodyDisc
-import com.byeolmajung.sky.BodyKind
-import com.byeolmajung.sky.MoonSprite
-import com.byeolmajung.sky.SkyTexture
-import com.byeolmajung.sky.SkyFrame
-import com.byeolmajung.sky.StarDot
+import com.kepler22b.sky.ArtPlacement
+import com.kepler22b.sky.BackgroundImage
+import com.kepler22b.sky.BodyDisc
+import com.kepler22b.sky.BodyKind
+import com.kepler22b.sky.MoonSprite
+import com.kepler22b.sky.SkyTexture
+import com.kepler22b.sky.SkyFrame
+import com.kepler22b.sky.StarDot
 import kotlin.math.abs
 
 /**

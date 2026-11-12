@@ -1,9 +1,9 @@
-package com.byeolmajung.app
+package com.kepler22b.app
 
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.byeolmajung.sky.Gleo
+import com.kepler22b.sky.Gleo
 import org.json.JSONObject
 
 /**
@@ -35,7 +35,7 @@ object GleoBridge {
             text = text.substring(1, text.length - 1).replace("\\\"", "\"")
         }
         return runCatching { JSONObject(text.ifEmpty { "{}" }) }.getOrElse {
-            Log.w("Byeolmajung", "bad Gleo ACTION_PARAM: $raw")
+            Log.w("Kepler22b", "bad Gleo ACTION_PARAM: $raw")
             JSONObject()
         }
     }
@@ -46,7 +46,7 @@ object GleoBridge {
                 putExtra("packageName", context.packageName)
                 putExtra("response", response.toJson())
             })
-            Log.d("Byeolmajung", "Gleo response: ${response.toJson()}")
-        }.onFailure { Log.w("Byeolmajung", "Gleo response failed", it) }
+            Log.d("Kepler22b", "Gleo response: ${response.toJson()}")
+        }.onFailure { Log.w("Kepler22b", "Gleo response failed", it) }
     }
 }
